@@ -4,6 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const HealthRecord = require('../models/HealthRecord');
 const { protect } = require('../middleware/auth');
+const BlockchainService = require('../services/blockchain');
 
 // Multer config for file uploads
 const storage = multer.diskStorage({
@@ -24,6 +25,17 @@ router.post('/', protect, upload.single('file'), async (req, res) => {
             fileUrl: req.file ? `/uploads/${req.file.filename}` : '',
             fileName: req.file ? req.file.originalname : ''
         });
+
+        // Log to blockchain
+        await BlockchainService.addBlock({
+            action: 'RECORD_UPLOADED',
+            patientId: req.user._id,
+            actorId: req.user._id,
+            actorRole: req.user.role || 'patient',
+            details: `Record uploaded: ${title} (${type})`,
+            recordId: record._id
+        });
+
         res.status(201).json(record);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -100,4 +112,41 @@ router.get('/analytics/trends', protect, async (req, res) => {
     }
 });
 
+// Hospital uploads a report to a patient's vault
+router.post('/hospital-upload', protect, upload.single('file'), async (req, res) => {
+    try {
+        const { title, type, description, patientHealthId, uploadedBy, uploadedByCode } = req.body;
+        const User = require('../models/User');
+        
+        // Find the patient by Health ID
+        const patient = await User.findOne({ healthId: patientHealthId, role: 'patient' });
+        if (!patient) return res.status(404).json({ message: 'Patient not found with this Health ID.' });
+
+        const record = await HealthRecord.create({
+            patient: patient._id,
+            title,
+            type,
+            description: `${description || ''} [Uploaded by: ${uploadedBy} (${uploadedByCode})]`.trim(),
+            fileUrl: req.file ? `/uploads/${req.file.filename}` : '',
+            fileName: req.file ? req.file.originalname : '',
+            source: 'hospital_upload'
+        });
+
+        // Log to blockchain
+        await BlockchainService.addBlock({
+            action: 'RECORD_UPLOADED',
+            patientId: patient._id,
+            actorId: req.user._id,
+            actorRole: 'hospital',
+            details: `Hospital ${uploadedBy} (${uploadedByCode}) uploaded: ${title} (${type})`,
+            recordId: record._id
+        });
+
+        res.status(201).json(record);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
 module.exports = router;
+

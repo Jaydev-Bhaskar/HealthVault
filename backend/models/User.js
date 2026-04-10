@@ -7,7 +7,7 @@ const userSchema = new mongoose.Schema({
     password: { type: String, required: true },
     phone: { type: String },
     aadhaarId: { type: String },
-    role: { type: String, enum: ['patient', 'doctor', 'admin'], default: 'patient' },
+    role: { type: String, enum: ['patient', 'doctor', 'hospital', 'admin'], default: 'patient' },
     profilePhoto: { type: String, default: '' },
     bloodGroup: { type: String, default: '' },
     age: { type: Number },
@@ -17,6 +17,11 @@ const userSchema = new mongoose.Schema({
     specialty: { type: String },
     hospital: { type: String },
     licenseNumber: { type: String },
+    // Hospital/Lab-specific fields
+    labCode: { type: String, unique: true, sparse: true },
+    registrationNumber: { type: String },
+    labTypes: [String],  // e.g., ['Pathology', 'Radiology', 'Cardiology']
+    address: { type: String },
     // Patient fields
     allergies: [String],
     chronicIllnesses: [String],
@@ -41,6 +46,13 @@ userSchema.pre('save', async function (next) {
         for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
         this.doctorCode = code;
     }
+    // Auto-generate lab code: LAB-<4 alpha> e.g. LAB-X7K2
+    if (this.role === 'hospital' && !this.labCode) {
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        let code = 'LAB-';
+        for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
+        this.labCode = code;
+    }
     next();
 });
 
@@ -49,3 +61,4 @@ userSchema.methods.matchPassword = async function (enteredPassword) {
 };
 
 module.exports = mongoose.model('User', userSchema);
+

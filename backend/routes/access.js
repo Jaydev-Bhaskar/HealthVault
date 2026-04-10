@@ -5,6 +5,7 @@ const Medicine = require('../models/Medicine');
 const { protect } = require('../middleware/auth');
 const QRCode = require('qrcode');
 const User = require('../models/User');
+const BlockchainService = require('../services/blockchain');
 
 // Grant access to a doctor (by doctorCode or manual entry)
 router.post('/grant', protect, async (req, res) => {
@@ -29,6 +30,16 @@ router.post('/grant', protect, async (req, res) => {
             accessType: accessType || 'full',
             expiresAt
         });
+
+        // Log to blockchain
+        await BlockchainService.addBlock({
+            action: 'ACCESS_GRANTED',
+            patientId: req.user._id,
+            actorId: doctor ? doctor._id : req.user._id,
+            actorRole: 'patient',
+            details: `Patient granted ${accessType || 'full'} access to Dr. ${doctor ? doctor.name : doctorName} (${doctorCode || 'manual'})`
+        });
+
         res.status(201).json(permission);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -56,6 +67,16 @@ router.put('/:id/toggle', protect, async (req, res) => {
                 timestamp: new Date()
             });
             await permission.save();
+
+            // Log to blockchain
+            await BlockchainService.addBlock({
+                action: permission.isActive ? 'ACCESS_GRANTED' : 'ACCESS_REVOKED',
+                patientId: req.user._id,
+                actorId: permission.doctor || req.user._id,
+                actorRole: 'patient',
+                details: `Access ${permission.isActive ? 'reactivated' : 'suspended'} for ${permission.doctorName} (${permission.doctorCode})`
+            });
+
             res.json(permission);
         } else {
             res.status(404).json({ message: 'Permission not found' });
@@ -70,6 +91,15 @@ router.delete('/:id', protect, async (req, res) => {
     try {
         const permission = await AccessPermission.findById(req.params.id);
         if (permission && permission.patient.toString() === req.user._id.toString()) {
+            // Log to blockchain BEFORE deletion
+            await BlockchainService.addBlock({
+                action: 'ACCESS_REVOKED',
+                patientId: req.user._id,
+                actorId: permission.doctor || req.user._id,
+                actorRole: 'patient',
+                details: `Permanently revoked access for ${permission.doctorName} (${permission.doctorCode})`
+            });
+
             await permission.deleteOne();
             res.json({ message: 'Access revoked' });
         } else {
@@ -85,6 +115,16 @@ router.get('/emergency-qr', protect, async (req, res) => {
     try {
         const user = await User.findById(req.user._id).select('name bloodGroup allergies chronicIllnesses currentMedications emergencyContact healthId');
         const activeMeds = await Medicine.find({ patient: req.user._id, isActive: true }).select('name dosage frequency');
+
+        // Log emergency access to blockchain
+        await BlockchainService.addBlock({
+            action: 'EMERGENCY_ACCESS',
+            patientId: req.user._id,
+            actorId: req.user._id,
+            actorRole: 'patient',
+            details: 'Emergency QR code generated'
+        });
+
         const emergencyData = {
             healthId: user.healthId,
             name: user.name,
@@ -107,3 +147,4 @@ router.get('/emergency-qr', protect, async (req, res) => {
 });
 
 module.exports = router;
+

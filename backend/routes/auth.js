@@ -12,7 +12,7 @@ const otpStore = {};
 // Register (email + password)
 router.post('/register', async (req, res) => {
     try {
-        const { name, email, password, phone, aadhaarId, role, bloodGroup, age, specialty, hospital, licenseNumber } = req.body;
+        const { name, email, password, phone, aadhaarId, role, bloodGroup, age, specialty, hospital, licenseNumber, registrationNumber, labTypes, address } = req.body;
         const userExists = await User.findOne({ email });
         if (userExists) return res.status(400).json({ message: 'User already exists' });
 
@@ -22,12 +22,18 @@ router.post('/register', async (req, res) => {
             userData.hospital = hospital;
             userData.licenseNumber = licenseNumber;
         }
+        if (role === 'hospital') {
+            userData.registrationNumber = registrationNumber;
+            userData.labTypes = labTypes || [];
+            userData.address = address;
+        }
         const user = await User.create(userData);
         res.status(201).json({
             _id: user._id, name: user.name, email: user.email, role: user.role,
             healthId: user.healthId, healthScore: user.healthScore, bloodGroup: user.bloodGroup,
             age: user.age, phone: user.phone, aadhaarId: user.aadhaarId,
             doctorCode: user.doctorCode, specialty: user.specialty, hospital: user.hospital,
+            labCode: user.labCode, registrationNumber: user.registrationNumber, labTypes: user.labTypes,
             token: generateToken(user._id)
         });
     } catch (error) {
@@ -47,6 +53,8 @@ router.post('/login', async (req, res) => {
                 age: user.age, phone: user.phone, aadhaarId: user.aadhaarId,
                 allergies: user.allergies, chronicIllnesses: user.chronicIllnesses,
                 currentMedications: user.currentMedications,
+                doctorCode: user.doctorCode, specialty: user.specialty,
+                labCode: user.labCode, registrationNumber: user.registrationNumber, labTypes: user.labTypes,
                 token: generateToken(user._id)
             });
         } else {
@@ -186,6 +194,45 @@ router.get('/doctors/search', protect, async (req, res) => {
         };
         const doctors = await User.find(query).select('name doctorCode specialty hospital email').limit(10);
         res.json(doctors);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// Search hospitals/labs by code or name
+router.get('/hospitals/search', protect, async (req, res) => {
+    try {
+        const { q } = req.query;
+        if (!q || q.length < 2) return res.json([]);
+        const query = {
+            role: 'hospital',
+            $or: [
+                { labCode: { $regex: q, $options: 'i' } },
+                { name: { $regex: q, $options: 'i' } },
+                { address: { $regex: q, $options: 'i' } }
+            ]
+        };
+        const hospitals = await User.find(query).select('name labCode labTypes address email registrationNumber').limit(10);
+        res.json(hospitals);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+// Search patient by Health ID (for hospitals to upload reports)
+router.get('/patient/search', protect, async (req, res) => {
+    try {
+        const { q } = req.query;
+        if (!q || q.length < 3) return res.status(400).json({ message: 'Please enter at least 3 characters.' });
+        const patient = await User.findOne({
+            role: 'patient',
+            $or: [
+                { healthId: { $regex: q, $options: 'i' } },
+                { name: { $regex: q, $options: 'i' } },
+                { email: { $regex: q, $options: 'i' } }
+            ]
+        }).select('name healthId bloodGroup age email');
+        if (!patient) return res.status(404).json({ message: 'No patient found.' });
+        res.json(patient);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
