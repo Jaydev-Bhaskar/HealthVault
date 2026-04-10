@@ -46,3 +46,6 @@ frontend/build/
 tmp/
 uploads/
 backend/uploads/
+
+# Stitch agent artifacts
+stitch-skills/
