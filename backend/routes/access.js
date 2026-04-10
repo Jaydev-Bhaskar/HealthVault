@@ -2,13 +2,13 @@ const express = require('express');
 const router = express.Router();
 const AccessPermission = require('../models/AccessPermission');
 const Medicine = require('../models/Medicine');
-const { protect } = require('../middleware/auth');
+const { protect, requireRole } = require('../middleware/auth');
 const QRCode = require('qrcode');
 const User = require('../models/User');
 const BlockchainService = require('../services/blockchain');
 
-// Grant access to a doctor (by doctorCode or manual entry)
-router.post('/grant', protect, async (req, res) => {
+// Grant access to a doctor (PATIENT ONLY)
+router.post('/grant', protect, requireRole('patient'), async (req, res) => {
     try {
         const { doctorCode, doctorId, doctorName, doctorSpecialty, hospital, accessType, expiresAt } = req.body;
 
@@ -56,8 +56,8 @@ router.get('/', protect, async (req, res) => {
     }
 });
 
-// Toggle access (activate/deactivate)
-router.put('/:id/toggle', protect, async (req, res) => {
+// Toggle access (PATIENT ONLY)
+router.put('/:id/toggle', protect, requireRole('patient'), async (req, res) => {
     try {
         const permission = await AccessPermission.findById(req.params.id);
         if (permission && permission.patient.toString() === req.user._id.toString()) {
@@ -86,8 +86,8 @@ router.put('/:id/toggle', protect, async (req, res) => {
     }
 });
 
-// Revoke access
-router.delete('/:id', protect, async (req, res) => {
+// Revoke access (PATIENT ONLY)
+router.delete('/:id', protect, requireRole('patient'), async (req, res) => {
     try {
         const permission = await AccessPermission.findById(req.params.id);
         if (permission && permission.patient.toString() === req.user._id.toString()) {

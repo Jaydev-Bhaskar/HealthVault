@@ -3,7 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const HealthRecord = require('../models/HealthRecord');
-const { protect } = require('../middleware/auth');
+const { protect, requireRole } = require('../middleware/auth');
 const BlockchainService = require('../services/blockchain');
 
 // Multer config for file uploads
@@ -112,8 +112,8 @@ router.get('/analytics/trends', protect, async (req, res) => {
     }
 });
 
-// Hospital uploads a report to a patient's vault
-router.post('/hospital-upload', protect, upload.single('file'), async (req, res) => {
+// Hospital uploads a report to a patient's vault (HOSPITAL ONLY)
+router.post('/hospital-upload', protect, requireRole('hospital'), upload.single('file'), async (req, res) => {
     try {
         const { title, type, description, patientHealthId, uploadedBy, uploadedByCode } = req.body;
         const User = require('../models/User');

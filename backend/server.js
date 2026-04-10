@@ -31,6 +31,7 @@ app.use('/api/access', require('./routes/access'));
 app.use('/api/medicines', require('./routes/medicine'));
 app.use('/api/ai', require('./routes/ai'));
 app.use('/api/blockchain', require('./routes/blockchain'));
+app.use('/api/doctor', require('./routes/doctor'));
 
 // Health check
 app.get('/api/health', (req, res) => {

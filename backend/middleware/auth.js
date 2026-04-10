@@ -18,4 +18,14 @@ const protect = async (req, res, next) => {
     }
 };
 
-module.exports = { protect };
+// Role-specific middleware
+const requireRole = (...roles) => {
+    return (req, res, next) => {
+        if (!req.user || !roles.includes(req.user.role)) {
+            return res.status(403).json({ message: `Access denied. Required role: ${roles.join(' or ')}` });
+        }
+        next();
+    };
+};
+
+module.exports = { protect, requireRole };
