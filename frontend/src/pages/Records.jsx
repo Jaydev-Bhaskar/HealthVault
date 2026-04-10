@@ -49,7 +49,7 @@ const Records = () => {
         setRecords(prev => [data.record, ...prev]);
       }
     } catch (err) {
-      setScanResult({ error: err.response?.data?.message || 'OCR scan failed. Make sure backend is running.' });
+      setScanResult({ error: err.response?.data?.message || 'OCR scan failed. Make sure backend is running and check your Gemini API key.' });
     }
     setUploading(false);
   };
@@ -157,6 +157,11 @@ const Records = () => {
                   <ul>{scanResult.extractedData.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>
                 </div>
               )}
+            </div>
+          )}
+          {scanResult?.aiWarning && (
+            <div style={{ marginTop: '16px', padding: '12px 16px', background: '#fff3e0', border: '1px solid #ffcc80', borderRadius: '8px', color: '#e65100' }}>
+              <strong>⚠️ Note:</strong> {scanResult.aiWarning}
             </div>
           )}
           {scanResult?.error && (
