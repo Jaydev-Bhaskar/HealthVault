@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { FiGrid, FiUsers, FiHelpCircle, FiLogOut, FiSearch, FiShield } from 'react-icons/fi';
+import { FiGrid, FiUsers, FiLogOut, FiSearch, FiShield } from 'react-icons/fi';
 import './Navbar.css';
 
 const Navbar = () => {
@@ -10,13 +10,23 @@ const Navbar = () => {
 
   const handleLogout = () => { logout(); navigate('/login'); };
 
-  const navItems = [
+  const isHospital = user?.role === 'hospital';
+
+  const patientNavItems = [
     { path: '/dashboard', icon: <FiGrid />, label: 'Dashboard' },
     { path: '/records', icon: <FiShield />, label: 'Vault' },
     { path: '/medicines', icon: '💊', label: 'Medicines' },
     { path: '/family', icon: <FiUsers />, label: 'Family' },
     { path: '/access', icon: <FiShield />, label: 'Access' },
+    { path: '/blockchain', icon: '⛓️', label: 'Ledger' },
   ];
+
+  const hospitalNavItems = [
+    { path: '/dashboard', icon: '🏥', label: 'Portal' },
+    { path: '/blockchain', icon: '⛓️', label: 'Ledger' },
+  ];
+
+  const navItems = isHospital ? hospitalNavItems : patientNavItems;
 
   return (
     <nav className="navbar">
@@ -28,7 +38,7 @@ const Navbar = () => {
 
         <div className="navbar-search">
           <FiSearch className="search-icon" />
-          <input type="text" placeholder="Search records, doctors, insights..." />
+          <input type="text" placeholder={isHospital ? 'Search patients...' : 'Search records, doctors, insights...'} />
         </div>
 
         <div className="navbar-links">
@@ -41,6 +51,8 @@ const Navbar = () => {
         </div>
 
         <div className="navbar-profile">
+          {isHospital && <span style={{ fontSize: '0.75rem', color: 'var(--primary-accent)', fontWeight: 700, marginRight: 8 }}>{user?.labCode}</span>}
+          {user?.role === 'doctor' && <span style={{ fontSize: '0.75rem', color: 'var(--primary-accent)', fontWeight: 700, marginRight: 8 }}>{user?.doctorCode}</span>}
           <div className="profile-avatar" onClick={() => navigate('/dashboard')}>{user?.name?.charAt(0) || 'U'}</div>
           <button className="logout-btn" onClick={handleLogout} title="Logout"><FiLogOut /></button>
         </div>

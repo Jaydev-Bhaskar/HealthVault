@@ -110,3 +110,18 @@ export const demoHealthTrends = [
     { month: 'Mar', bp_sys: 120, bp_dia: 78, sugar: 98, cholesterol: 195 },
     { month: 'Apr', bp_sys: 118, bp_dia: 77, sugar: 96, cholesterol: 192 }
 ];
+
+export const demoBlockchain = {
+    stats: { totalBlocks: 8, yourTransactions: 7, latestBlockIndex: 7, latestBlockHash: '00a3f7c8d2e5b19084f6a2c73d5e8b01f4a7c9d2e6b3f1084a7c5d9e2b6f3a18' },
+    ledger: [
+        { _id: 'b7', index: 7, action: 'MEDICINE_ADDED', timestamp: '2026-04-08T09:00:00Z', details: 'Batch medicines added: Montelukast 10mg, Cetirizine 5mg', hash: '00a3f7c8d2e5b19084f6a2c73d5e8b01f4a7c9d2e6b3f1084a7c5d9e2b6f3a18', previousHash: '006b2c9d4e7f1a38054c6d8e2b5f7a19083c5d7e9a2b4f6108' },
+        { _id: 'b6', index: 6, action: 'RECORD_UPLOADED', timestamp: '2026-04-05T10:30:00Z', details: 'Record uploaded: Dr. Sharma Prescription (prescription)', hash: '006b2c9d4e7f1a38054c6d8e2b5f7a19083c5d7e9a2b4f6108', previousHash: '00d4e6f8a1b3c5072d4e6f8a1b3c50729e1a3c5d7f90b2d4e6' },
+        { _id: 'b5', index: 5, action: 'ACCESS_REVOKED', timestamp: '2026-04-01T14:00:00Z', details: 'Access suspended for Dr. Aman Kulkarni (DR-K7M2)', hash: '00d4e6f8a1b3c5072d4e6f8a1b3c50729e1a3c5d7f90b2d4e6', previousHash: '00f1a3c5d7e9b20483f5a7c9d1e3b50627d9e' },
+        { _id: 'b4', index: 4, action: 'EMERGENCY_ACCESS', timestamp: '2026-03-28T08:15:00Z', details: 'Emergency QR code generated', hash: '00f1a3c5d7e9b20483f5a7c9d1e3b50627d9e', previousHash: '00c8d0e2f4a6b8173c5d7e9f1a3b5072' },
+        { _id: 'b3', index: 3, action: 'ACCESS_GRANTED', timestamp: '2026-03-01T10:00:00Z', details: 'Patient granted limited access to Dr. Priya Desai (DR-PD91)', hash: '00c8d0e2f4a6b8173c5d7e9f1a3b5072', previousHash: '009a1b3c5d7e9f20463b5d7e9f1a3c50' },
+        { _id: 'b2', index: 2, action: 'RECORD_UPLOADED', timestamp: '2026-02-10T11:00:00Z', details: 'Record uploaded: COVID-19 Booster Vaccination (vaccination)', hash: '009a1b3c5d7e9f20463b5d7e9f1a3c50', previousHash: '005c7d9e1f3a5b72084c6d8e0f2a4b60' },
+        { _id: 'b1', index: 1, action: 'ACCESS_GRANTED', timestamp: '2026-01-15T10:00:00Z', details: 'Patient granted full access to Dr. Rohit Sharma (DR-RS42)', hash: '005c7d9e1f3a5b72084c6d8e0f2a4b60', previousHash: '0000000000000000000000000000000000000000000000000000000000000000' },
+        { _id: 'b0', index: 0, action: 'GENESIS', timestamp: '2026-01-01T00:00:00Z', details: 'HealthVault AI Genesis Block — Chain Initialized', hash: '0000000000000000000000000000000000000000000000000000000000000000', previousHash: '0' }
+    ]
+};
+
