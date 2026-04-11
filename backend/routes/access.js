@@ -46,6 +46,58 @@ router.post('/grant', protect, requireRole('patient'), async (req, res) => {
     }
 });
 
+// Grant access via QR code scan (DOCTOR / HOSPITAL ONLY)
+router.post('/grant-by-scan', protect, async (req, res) => {
+    try {
+        const { healthId } = req.body;
+        if (!healthId) return res.status(400).json({ message: 'healthId is required' });
+
+        if (req.user.role !== 'doctor' && req.user.role !== 'hospital') {
+            return res.status(403).json({ message: 'Only medical professionals can initiate access via scan' });
+        }
+
+        const patient = await User.findOne({ healthId, role: 'patient' });
+        if (!patient) return res.status(404).json({ message: 'Patient not found' });
+
+        const professional = await User.findById(req.user._id);
+
+        let accessType = 'full';
+        
+        // Ensure no duplicate active permission exists
+        const existing = await AccessPermission.findOne({ patient: patient._id, doctor: professional._id });
+        if (existing) {
+            existing.isActive = true;
+            existing.accessType = accessType;
+            await existing.save();
+        } else {
+            await AccessPermission.create({
+                patient: patient._id,
+                doctor: professional._id,
+                doctorName: professional.name,
+                doctorSpecialty: professional.specialty || professional.labTypes?.join(', ') || '',
+                doctorCode: professional.doctorCode || professional.labCode || '',
+                hospital: professional.hospital || professional.address || '',
+                accessType: accessType,
+                isActive: true
+            });
+        }
+
+        // Log to blockchain
+        await BlockchainService.addBlock({
+            action: 'ACCESS_GRANTED_QR',
+            patientId: patient._id,
+            actorId: professional._id,
+            actorRole: professional.role,
+            details: `Patient granted ${accessType} access via Emergency QR Scan to ${professional.name}`
+        });
+
+        res.status(200).json({ message: 'Access granted successfully', patientId: patient._id });
+
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
 // Get all active permissions
 router.get('/', protect, async (req, res) => {
     try {

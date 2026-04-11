@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import API from '../utils/api';
-import { FiExternalLink } from 'react-icons/fi';
+import { FiExternalLink, FiCamera } from 'react-icons/fi';
+import jsQR from 'jsqr';
 import './Pages.css';
 
 const DoctorDashboard = () => {
@@ -16,6 +17,9 @@ const DoctorDashboard = () => {
   const [viewError, setViewError] = useState('');
   const [noteForm, setNoteForm] = useState({ title: '', note: '', diagnosis: '', prescriptions: [{ name: '', dosage: '', frequency: 'once_daily', duration: '' }] });
   const [noteSuccess, setNoteSuccess] = useState('');
+  const [scanning, setScanning] = useState(false);
+  const [scanMessage, setScanMessage] = useState('');
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     fetchData();
@@ -104,17 +108,71 @@ const DoctorDashboard = () => {
   };
   const last7Days = getLast7Days();
 
+  const handleQRUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setScanning(true);
+    setScanMessage('Scanning QR Code...');
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = async () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        
+        const code = jsQR(imageData.data, imageData.width, imageData.height);
+        if (code) {
+          try {
+            const qrData = JSON.parse(code.data);
+            if (!qrData.healthId) throw new Error('Invalid QR Data');
+
+            setScanMessage('QR recognized! Requesting access...');
+            const response = await API.post('/access/grant-by-scan', { healthId: qrData.healthId });
+            setScanMessage(`✅ Access granted for ${qrData.healthId}!`);
+            fetchData(); // Refresh patient list
+          } catch (err) {
+            setScanMessage('❌ Invalid QR Code format or network error.');
+          }
+        } else {
+          setScanMessage('❌ No QR code found in the image.');
+        }
+        setScanning(false);
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = null; // reset input
+  };
+
   return (
     <div className="page-container">
-      <div className="page-header">
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1>👨‍⚕️ Doctor Portal</h1>
           <p className="page-subtitle">View patient records granted to you – read-only & blockchain-logged</p>
         </div>
-        <div className="chip" style={{ background: 'var(--primary-accent)', color: '#333', fontWeight: 700, fontSize: '1rem', padding: '8px 16px' }}>
-          {user?.doctorCode || 'DR-XXXX'}
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+          <div className="chip" style={{ background: 'var(--primary-accent)', color: '#333', fontWeight: 700, fontSize: '1rem', padding: '8px 16px' }}>
+            {user?.doctorCode || 'DR-XXXX'}
+          </div>
+          <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handleQRUpload} />
+          <button className="btn-primary" style={{ background: '#333' }} onClick={() => fileInputRef.current.click()}>
+            <FiCamera style={{ marginRight: '8px' }} /> Scan Patient QR
+          </button>
         </div>
       </div>
+
+      {scanMessage && (
+        <div style={{ padding: '12px', background: scanMessage.startsWith('✅') ? '#e8f5e9' : scanMessage.startsWith('❌') ? '#ffebee' : '#e3f2fd', color: '#333', borderRadius: '8px', marginBottom: '16px', fontWeight: 600 }}>
+          {scanMessage}
+        </div>
+      )}
 
       {/* Doctor Stats */}
       {stats && (

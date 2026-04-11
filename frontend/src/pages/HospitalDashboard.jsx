@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import API from '../utils/api';
+import { FiCamera } from 'react-icons/fi';
+import jsQR from 'jsqr';
 import './Pages.css';
 
 const HospitalDashboard = () => {
@@ -13,6 +15,9 @@ const HospitalDashboard = () => {
   const [uploading, setUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState('');
   const [recentUploads, setRecentUploads] = useState([]);
+  const [scanning, setScanning] = useState(false);
+  const [scanMessage, setScanMessage] = useState('');
+  const fileInputRef = useRef(null);
 
   const searchPatient = async () => {
     if (!searchQuery.trim()) return;
@@ -60,17 +65,78 @@ const HospitalDashboard = () => {
     setUploading(false);
   };
 
+  const handleQRUpload = (e) => {
+    const uploadedFile = e.target.files[0];
+    if (!uploadedFile) return;
+
+    setScanning(true);
+    setScanMessage('Scanning QR Code...');
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = async () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        
+        const code = jsQR(imageData.data, imageData.width, imageData.height);
+        if (code) {
+          try {
+            const qrData = JSON.parse(code.data);
+            if (!qrData.healthId) throw new Error('Invalid QR Data');
+
+            setScanMessage('QR recognized! Requesting access...');
+            // Also call grant-by-scan so the hospital has persistent access if needed
+            await API.post('/access/grant-by-scan', { healthId: qrData.healthId });
+            setScanMessage(`✅ Access granted for ${qrData.healthId}!`);
+            
+            // Auto-fill search and execute
+            setSearchQuery(qrData.healthId);
+            setSearchError(''); setPatient(null);
+            const { data } = await API.get(`/auth/patient/search?q=${qrData.healthId}`);
+            if (data) setPatient(data);
+            
+          } catch (err) {
+            setScanMessage('❌ Invalid QR Code format or network error.');
+          }
+        } else {
+          setScanMessage('❌ No QR code found in the image.');
+        }
+        setScanning(false);
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(uploadedFile);
+    e.target.value = null; // reset input
+  };
+
   return (
     <div className="page-container">
-      <div className="page-header">
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1>🏥 Hospital / Lab Portal</h1>
           <p className="page-subtitle">Upload reports directly to patient vaults</p>
         </div>
-        <div className="chip" style={{ background: 'var(--primary-accent)', color: '#333', fontWeight: 700, fontSize: '1rem', padding: '8px 16px' }}>
-          {user?.labCode || 'LAB-XXXX'}
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+          <div className="chip" style={{ background: 'var(--primary-accent)', color: '#333', fontWeight: 700, fontSize: '1rem', padding: '8px 16px' }}>
+            {user?.labCode || 'LAB-XXXX'}
+          </div>
+          <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handleQRUpload} />
+          <button className="btn-primary" style={{ background: '#333' }} onClick={() => fileInputRef.current.click()}>
+            <FiCamera style={{ marginRight: '8px' }} /> Scan Patient QR
+          </button>
         </div>
       </div>
+
+      {scanMessage && (
+        <div style={{ padding: '12px', background: scanMessage.startsWith('✅') ? '#e8f5e9' : scanMessage.startsWith('❌') ? '#ffebee' : '#e3f2fd', color: '#333', borderRadius: '8px', marginBottom: '16px', fontWeight: 600 }}>
+          {scanMessage}
+        </div>
+      )}
 
       {/* Lab Info Card */}
       <div className="card" style={{ padding: 20, marginBottom: 24, display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'center' }}>
