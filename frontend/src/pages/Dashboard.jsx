@@ -86,12 +86,13 @@ const Dashboard = () => {
     try {
       const { data } = await API.post('/ai/chat', { message: msg });
       setChatMessages(prev => [...prev, { role: 'assistant', text: data.reply }]);
-    } catch {
-      // Offline fallback only for demo
+    } catch (err) {
+      // Show actual error from backend, otherwise fallback
       if (isDemo) {
         setChatMessages(prev => [...prev, { role: 'assistant', text: getOfflineResponse(msg) }]);
       } else {
-        setChatMessages(prev => [...prev, { role: 'assistant', text: '⚠️ Unable to reach AI service. Please check your internet connection and try again.' }]);
+        const errMsg = err.response?.data?.message || '⚠️ Unable to reach AI service. Please check your internet connection and try again.';
+        setChatMessages(prev => [...prev, { role: 'assistant', text: errMsg }]);
       }
     }
     setChatLoading(false);
@@ -114,7 +115,7 @@ const Dashboard = () => {
   const runAnalysis = async () => {
     setAnalyzing(true);
     try {
-      const { data } = await API.post('/ai/analyze');
+      const { data } = await API.post('/ai/analyze', { force: true });
       if (data.healthScore) { setHealthScore(data.healthScore); setScoreLabel(data.scoreLabel || 'Good'); }
       if (data.insights) setInsights(data.insights);
     } catch {

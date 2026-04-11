@@ -11,6 +11,7 @@ import Medicines from './pages/Medicines';
 import BlockchainLedger from './pages/BlockchainLedger';
 import HospitalDashboard from './pages/HospitalDashboard';
 import DoctorDashboard from './pages/DoctorDashboard';
+import ReminderNotification from './components/ReminderNotification';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth();
@@ -20,6 +21,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   return (
     <>
       <Navbar />
+      <ReminderNotification />
       {children}
     </>
   );

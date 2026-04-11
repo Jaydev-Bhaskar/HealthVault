@@ -27,6 +27,15 @@ const Medicines = () => {
 
   useEffect(() => {
     if (!isDemo) fetchMedicines();
+
+    const handleMedicineTaken = (e) => {
+      const { medId, timing } = e.detail;
+      const key = `${medId}_${timing}`;
+      setTakenMap(prev => ({ ...prev, [key]: true }));
+    };
+
+    window.addEventListener('medicineTaken', handleMedicineTaken);
+    return () => window.removeEventListener('medicineTaken', handleMedicineTaken);
   }, [isDemo]);
 
   useEffect(() => {
@@ -268,6 +277,51 @@ const Medicines = () => {
                       <FiCalendar size={12} /> Refill: {new Date(med.refillDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                     </div>
                   )}
+                  <div style={{ marginTop: '16px', borderTop: '1px solid var(--border)', paddingTop: '12px' }}>
+                    {(() => {
+                      let daysCount = 7;
+                      if (med.notes) {
+                        const match = med.notes.match(/(\d+)\s*days?/i);
+                        if (match) daysCount = parseInt(match[1]);
+                      }
+                      
+                      const trackDays = [];
+                      for (let i = daysCount - 1; i >= 0; i--) {
+                        const d = new Date();
+                        d.setDate(d.getDate() - i);
+                        trackDays.push(d.toISOString().split('T')[0]);
+                      }
+
+                      return (
+                        <>
+                          <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                            {daysCount}-Day Adherence
+                          </div>
+                          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                            {trackDays.map((dateStr, idx) => {
+                              const wasTakenSync = (med.adherenceLog || []).some(log => log.date.substring(0, 10) === dateStr && log.taken);
+                              const isToday = dateStr === trackDays[trackDays.length - 1];
+                              const wasTakenLocal = isToday && (med.timings || []).some(t => takenMap[`${med._id}_${t}`]);
+                              const wasTaken = wasTakenSync || wasTakenLocal;
+                              
+                              return (
+                                <div 
+                                  key={dateStr} 
+                                  title={dateStr}
+                                  style={{
+                                    flex: daysCount > 10 ? '0 0 calc(10% - 4px)' : 1, 
+                                    height: '8px', 
+                                    borderRadius: '4px',
+                                    background: wasTaken ? '#4caf50' : '#e0e0e0'
+                                  }} 
+                                />
+                              );
+                            })}
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
                 </div>
                 <button className="btn-ghost" style={{ width: '100%', marginTop: '12px', fontSize: '0.8rem', color: 'var(--error)' }} onClick={() => deleteMedicine(med._id)}>
                   <FiTrash2 size={12} /> Remove

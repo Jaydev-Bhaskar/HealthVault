@@ -3,7 +3,20 @@ const router = express.Router();
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
+const cloudinary = require('cloudinary').v2;
 const { protect } = require('../middleware/auth');
+const Tesseract = require('tesseract.js');
+const Groq = require('groq-sdk');
+
+// Start Groq client (requires GROQ_API_KEY)
+const groq = process.env.GROQ_API_KEY ? new Groq({ apiKey: process.env.GROQ_API_KEY }) : null;
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
 const HealthRecord = require('../models/HealthRecord');
 const Medicine = require('../models/Medicine');
 const User = require('../models/User');
@@ -77,81 +90,27 @@ function getMockAnalysisResponse(user) {
     };
 }
 
-// Helper: Call Gemini API with robust error handling
-async function callGemini(prompt, imageBase64 = null, mimeType = 'image/jpeg') {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) throw new Error('GEMINI_API_KEY is not configured in .env');
+// Helper: Call Groq (Llama 3 API)
+async function callGroq(prompt, jsonMode = false) {
+    if (!groq) throw new Error('GROQ_API_KEY is not configured in .env');
 
-    // Normalize mime types
-    if (mimeType === 'application/octet-stream') mimeType = 'image/jpeg';
-    if (!mimeType.startsWith('image/') && !mimeType.startsWith('application/pdf')) {
-        mimeType = 'image/jpeg';
-    }
+    console.log(`🤖 Calling Groq Llama-3 API...`);
 
-    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-
-    const parts = [];
-    if (imageBase64) {
-        parts.push({ inlineData: { mimeType, data: imageBase64 } });
-    }
-    parts.push({ text: prompt });
-
-    const requestBody = {
-        contents: [{ parts }],
-        generationConfig: {
+    try {
+        const chatCompletion = await groq.chat.completions.create({
+            messages: [{ role: 'user', content: prompt }],
+            model: 'llama-3.1-8b-instant',
             temperature: 0.2,
-            maxOutputTokens: 4096
-        },
-        safetySettings: [
-            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
-            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
-            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
-            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' }
-        ]
-    };
+            response_format: jsonMode ? { type: "json_object" } : undefined
+        });
 
-    console.log(`🤖 Calling Gemini API [mimeType: ${mimeType}, hasImage: ${!!imageBase64}, promptLen: ${prompt.length}]`);
-
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody)
-    });
-
-    const data = await response.json();
-
-    // HTTP-level errors (quota, auth, etc.)
-    if (!response.ok) {
-        console.error('❌ Gemini HTTP Error:', response.status, JSON.stringify(data).substring(0, 300));
-        const msg = data.error?.message || JSON.stringify(data);
-        throw new Error(`Gemini API error (${response.status}): ${msg}`);
+        const text = chatCompletion.choices[0].message.content;
+        console.log(`✅ Groq response received [${text.length} chars]`);
+        return text;
+    } catch (err) {
+        console.error('❌ Groq connection failed:', err.message);
+        throw new Error(`Groq API error: ${err.message}`);
     }
-
-    // Blocked by safety at the prompt level
-    if (data.promptFeedback?.blockReason) {
-        console.error('❌ Gemini blocked by safety:', data.promptFeedback.blockReason);
-        throw new Error(`Content blocked by Gemini safety filter: ${data.promptFeedback.blockReason}`);
-    }
-
-    // Extract text from candidates
-    if (data.candidates && data.candidates.length > 0) {
-        const candidate = data.candidates[0];
-
-        if (candidate.finishReason === 'SAFETY') {
-            console.error('❌ Gemini candidate blocked:', JSON.stringify(candidate.safetyRatings));
-            throw new Error('Response blocked by Gemini safety filter. Try a different image.');
-        }
-
-        if (candidate.content && candidate.content.parts && candidate.content.parts.length > 0) {
-            const text = candidate.content.parts[0].text;
-            console.log(`✅ Gemini response received [${text.length} chars]`);
-            return text;
-        }
-    }
-
-    // Fallback — no usable content
-    console.error('❌ Gemini no content. Full response:', JSON.stringify(data).substring(0, 500));
-    throw new Error(`Gemini API returned no content. Response: ${JSON.stringify(data).substring(0, 200)}`);
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -165,6 +124,18 @@ router.post('/ocr-scan', protect, upload.single('file'), async (req, res) => {
         const fileBuffer = fs.readFileSync(filePath);
         const base64 = fileBuffer.toString('base64');
         const mimeType = req.file.mimetype;
+        
+        let fileUrl = `/uploads/${req.file.filename}`;
+        let uploadedToCloudinary = false;
+        try {
+            if (process.env.CLOUDINARY_CLOUD_NAME || process.env.CLOUDINARY_URL) {
+                const uploadResult = await cloudinary.uploader.upload(filePath, { folder: 'healthvault' });
+                fileUrl = uploadResult.secure_url;
+                uploadedToCloudinary = true;
+            }
+        } catch (cloudErr) {
+            console.error('⚠️ Cloudinary upload failed, using local file:', cloudErr.message);
+        }
 
         // Valid enum values for HealthRecord.type
         const validTypes = ['lab_report', 'prescription', 'scan', 'fitness', 'vaccination', 'other'];
@@ -205,18 +176,25 @@ router.post('/ocr-scan', protect, upload.single('file'), async (req, res) => {
         let parsed = null;
         let aiError = null;
 
-        // Attempt AI parsing — gracefully degrade if Gemini is unavailable
+        // Attempt AI parsing — gracefully degrade if Groq/Tesseract is unavailable
         try {
-            const result = await callGemini(prompt, base64, mimeType);
+            console.log('🔍 Running Local OCR with Tesseract...');
+            const { data: { text } } = await Tesseract.recognize(filePath, 'eng');
+            console.log(`✅ Local OCR finished, extracted ${text.length} characters.`);
+            
+            const groqPrompt = `${prompt}\n\nRaw Text from Image OCR:\n${text}`;
+            const result = await callGroq(groqPrompt, true);
+            
             try {
-                const jsonStr = result.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-                parsed = JSON.parse(jsonStr);
+                // Since jsonMode is true, result should be pure JSON
+                parsed = JSON.parse(result);
             } catch (e) {
+                // If it somehow fails parsing, fallback structure
                 parsed = { summary: result, documentType: 'other', title: 'Scanned Document' };
             }
-        } catch (geminiErr) {
-            console.error('⚠️ Gemini AI failed, saving record without AI parsing:', geminiErr.message);
-            aiError = geminiErr.message;
+        } catch (aiCrashErr) {
+            console.error('⚠️ AI/OCR pipeline failed, saving record without automated data:', aiCrashErr.message);
+            aiError = aiCrashErr.message;
 
             // User-friendly message for quota exceeded
             if (aiError.includes('429') || aiError.includes('quota') || aiError.includes('rate')) {
@@ -231,6 +209,11 @@ router.post('/ocr-scan', protect, upload.single('file'), async (req, res) => {
             aiError = null; // Suppress the orange error box in the UI
         }
 
+        // Cleanup local file after uploading to Cloudinary and finishing OCR
+        if (uploadedToCloudinary) {
+            try { fs.unlinkSync(filePath); } catch (e) { console.error('Cleanup error:', e); }
+        }
+
         // Ensure documentType matches the Mongoose enum
         const docType = validTypes.includes(parsed.documentType) ? parsed.documentType : 'other';
 
@@ -240,7 +223,7 @@ router.post('/ocr-scan', protect, upload.single('file'), async (req, res) => {
             title: parsed.title || req.body.title || 'Scanned Document',
             type: docType,
             description: parsed.summary || '',
-            fileUrl: `/uploads/${req.file.filename}`,
+            fileUrl: fileUrl,
             fileName: req.file.originalname,
             source: aiError ? 'manual_upload' : 'ai_ocr',
             isVerified: false,
@@ -303,9 +286,23 @@ router.post('/ocr-scan', protect, upload.single('file'), async (req, res) => {
 // ────────────────────────────────────────────────────────────────────
 router.post('/analyze', protect, async (req, res) => {
     try {
+        const { force } = req.body;
         const records = await HealthRecord.find({ patient: req.user._id }).sort({ uploadedAt: -1 }).limit(10);
         const medicines = await Medicine.find({ patient: req.user._id, isActive: true });
         const user = await User.findById(req.user._id);
+
+        // Check cache to save API credits (unless forced by user clicking the button)
+        const lastAnalysis = user.lastAnalysisData;
+        const twelveHoursInMs = 12 * 60 * 60 * 1000;
+        
+        if (!force && lastAnalysis && lastAnalysis.timestamp && (Date.now() - new Date(lastAnalysis.timestamp).getTime()) < twelveHoursInMs) {
+            // Check if context has changed
+            const latestRecordTime = records.length > 0 ? new Date(records[0].uploadedAt).getTime() : 0;
+            if (latestRecordTime <= new Date(lastAnalysis.timestamp).getTime()) {
+                console.log('⚡ Returning cached AI analysis');
+                return res.json(lastAnalysis.data);
+            }
+        }
 
         const patientContext = {
             name: user.name,
@@ -346,19 +343,23 @@ router.post('/analyze', protect, async (req, res) => {
 
         let analysis = null;
         try {
-            const result = await callGemini(prompt);
+            const result = await callGroq(prompt, true);
             const jsonStr = result.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
             analysis = JSON.parse(jsonStr);
-        } catch (geminiErr) {
-            console.error('⚠️ Analysis Gemini AI failed, providing mock data:', geminiErr.message);
+        } catch (groqErr) {
+            console.error('⚠️ Analysis Groq AI failed, providing mock data:', groqErr.message);
             analysis = getMockAnalysisResponse(user);
             analysis.demoMode = true;
             analysis.warning = null; // Remove the warning message
         }
 
-        // Update user health score
+        // Update user health score and cache the analysis
         if (analysis.healthScore) {
             user.healthScore = analysis.healthScore;
+            user.lastAnalysisData = {
+                timestamp: new Date(),
+                data: analysis
+            };
             await user.save();
         }
 
@@ -403,7 +404,14 @@ router.post('/chat', protect, async (req, res) => {
     
     User message: "${message}"`;
 
-        const result = await callGemini(prompt);
+        let result;
+        try {
+            result = await callGroq(prompt, false);
+        } catch (groqError) {
+            console.error('⚠️ Chat Groq AI failed:', groqError.message);
+            result = "I'm having trouble connecting to my new Groq brain. Please ensure API keys are set!";
+        }
+
         res.json({ reply: result });
     } catch (error) {
         console.error('Chat Error:', error);

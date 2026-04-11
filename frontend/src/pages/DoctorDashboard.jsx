@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import API from '../utils/api';
+import { FiExternalLink } from 'react-icons/fi';
 import './Pages.css';
 
 const DoctorDashboard = () => {
@@ -91,6 +92,17 @@ const DoctorDashboard = () => {
     lab_report: '🧪 Lab Report', prescription: '💊 Prescription', scan: '📷 Scan',
     vaccination: '💉 Vaccination', other: '📄 Other'
   };
+
+  const getLast7Days = () => {
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      days.push(d.toISOString().split('T')[0]);
+    }
+    return days;
+  };
+  const last7Days = getLast7Days();
 
   return (
     <div className="page-container">
@@ -211,6 +223,19 @@ const DoctorDashboard = () => {
                     <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '8px 0 0' }}>
                       {new Date(r.uploadedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
                     </p>
+                    {r.fileUrl && (
+                      <div style={{ marginTop: 12 }}>
+                        <a 
+                          href={r.fileUrl.startsWith('http') ? r.fileUrl : `http://localhost:5000${r.fileUrl}`} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="btn-outline"
+                          style={{ fontSize: '0.75rem', padding: '4px 10px', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                        >
+                          <FiExternalLink size={12} /> View Document
+                        </a>
+                      </div>
+                    )}
                     {r.aiParsedData?.keyMetrics?.length > 0 && (
                       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 8 }}>
                         {r.aiParsedData.keyMetrics.map((m, i) => (
@@ -236,7 +261,7 @@ const DoctorDashboard = () => {
                   <div className="card" style={{ padding: 16 }}>
                     <table className="med-table" style={{ width: '100%' }}>
                       <thead>
-                        <tr><th>Medicine</th><th>Dosage</th><th>Frequency</th><th>Status</th><th>Prescribed By</th></tr>
+                        <tr><th>Medicine</th><th>Dosage</th><th>Frequency</th><th>Status</th><th>Adherence (7d)</th></tr>
                       </thead>
                       <tbody>
                         {medicines.map(m => (
@@ -245,7 +270,44 @@ const DoctorDashboard = () => {
                             <td>{m.dosage}</td>
                             <td>{m.frequency?.replace(/_/g, ' ')}</td>
                             <td><span className={`chip ${m.isActive ? 'chip-success' : ''}`}>{m.isActive ? 'Active' : 'Inactive'}</span></td>
-                            <td>{m.prescribedBy || '—'}</td>
+                            <td>
+                              {(() => {
+                                let daysCount = 7;
+                                if (m.notes) {
+                                  const match = m.notes.match(/(\d+)\s*days?/i);
+                                  if (match) daysCount = parseInt(match[1]);
+                                }
+                                
+                                const trackDays = [];
+                                for (let i = daysCount - 1; i >= 0; i--) {
+                                  const d = new Date();
+                                  d.setDate(d.getDate() - i);
+                                  trackDays.push(d.toISOString().split('T')[0]);
+                                }
+
+                                return (
+                                  <div>
+                                    <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>{daysCount} Days</div>
+                                    <div style={{ display: 'flex', gap: '3px', width: '80px', flexWrap: 'wrap' }}>
+                                      {trackDays.map(dateStr => {
+                                        const wasTaken = (m.adherenceLog || []).some(log => log.date && log.date.substring(0, 10) === dateStr && log.taken);
+                                        return (
+                                          <div 
+                                            key={dateStr} title={dateStr}
+                                            style={{
+                                              flex: daysCount > 10 ? '0 0 calc(20% - 3px)' : 1, 
+                                              height: '8px', borderRadius: '3px',
+                                              background: wasTaken ? '#4caf50' : '#e0e0e0',
+                                              marginBottom: daysCount > 10 ? '3px' : 0
+                                            }}
+                                          />
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                );
+                              })()}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
