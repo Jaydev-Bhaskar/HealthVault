@@ -18,14 +18,12 @@ const FamilyVault = () => {
 
   const fetchFamilyData = async () => {
     try {
-      // Upgraded Caregiver Intelligence endpoint
-      const { data } = await API.get('/family/dashboard');
-      setMembers(data.members || []);
-      const [famRes, reqRes] = await Promise.all([
-        API.get('/auth/family'),
+      // Fetch AI-enriched member data and pending requests in parallel
+      const [dashRes, reqRes] = await Promise.all([
+        API.get('/family/dashboard'),
         API.get('/auth/family/requests')
       ]);
-      setMembers(famRes.data || []);
+      setMembers(dashRes.data.members || []);
       setRequests(reqRes.data || []);
     } catch { /* empty for new users */ }
   };
