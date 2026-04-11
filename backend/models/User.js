@@ -28,6 +28,7 @@ const userSchema = new mongoose.Schema({
     currentMedications: [String],
     emergencyContact: { name: String, phone: String, relation: String },
     healthScore: { type: Number, default: 500 },
+    lastAnalysisData: { type: mongoose.Schema.Types.Mixed },
     familyMembers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     createdAt: { type: Date, default: Date.now }
 });

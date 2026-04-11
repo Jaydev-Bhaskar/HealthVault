@@ -3,7 +3,15 @@ const router = express.Router();
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
+const cloudinary = require('cloudinary').v2;
 const { protect } = require('../middleware/auth');
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
 const HealthRecord = require('../models/HealthRecord');
 const Medicine = require('../models/Medicine');
 const User = require('../models/User');
@@ -165,6 +173,19 @@ router.post('/ocr-scan', protect, upload.single('file'), async (req, res) => {
         const fileBuffer = fs.readFileSync(filePath);
         const base64 = fileBuffer.toString('base64');
         const mimeType = req.file.mimetype;
+        
+        let fileUrl = `/uploads/${req.file.filename}`;
+        try {
+            if (process.env.CLOUDINARY_CLOUD_NAME || process.env.CLOUDINARY_URL) {
+                const uploadResult = await cloudinary.uploader.upload(filePath, { folder: 'healthvault' });
+                fileUrl = uploadResult.secure_url;
+                
+                // Cleanup local file after uploading to Cloudinary
+                try { fs.unlinkSync(filePath); } catch (e) { console.error('Cleanup error:', e); }
+            }
+        } catch (cloudErr) {
+            console.error('⚠️ Cloudinary upload failed, using local file:', cloudErr.message);
+        }
 
         // Valid enum values for HealthRecord.type
         const validTypes = ['lab_report', 'prescription', 'scan', 'fitness', 'vaccination', 'other'];
@@ -240,7 +261,7 @@ router.post('/ocr-scan', protect, upload.single('file'), async (req, res) => {
             title: parsed.title || req.body.title || 'Scanned Document',
             type: docType,
             description: parsed.summary || '',
-            fileUrl: `/uploads/${req.file.filename}`,
+            fileUrl: fileUrl,
             fileName: req.file.originalname,
             source: aiError ? 'manual_upload' : 'ai_ocr',
             isVerified: false,
@@ -307,6 +328,19 @@ router.post('/analyze', protect, async (req, res) => {
         const medicines = await Medicine.find({ patient: req.user._id, isActive: true });
         const user = await User.findById(req.user._id);
 
+        // Check cache to save Gemini API credits
+        const lastAnalysis = user.lastAnalysisData;
+        const twelveHoursInMs = 12 * 60 * 60 * 1000;
+        
+        if (lastAnalysis && lastAnalysis.timestamp && (Date.now() - new Date(lastAnalysis.timestamp).getTime()) < twelveHoursInMs) {
+            // Check if context has changed (e.g. new records)
+            const latestRecordTime = records.length > 0 ? new Date(records[0].uploadedAt).getTime() : 0;
+            if (latestRecordTime < new Date(lastAnalysis.timestamp).getTime()) {
+                console.log('⚡ Returning cached AI analysis to save limits');
+                return res.json(lastAnalysis.data);
+            }
+        }
+
         const patientContext = {
             name: user.name,
             age: user.age,
@@ -356,9 +390,13 @@ router.post('/analyze', protect, async (req, res) => {
             analysis.warning = null; // Remove the warning message
         }
 
-        // Update user health score
+        // Update user health score and cache the analysis
         if (analysis.healthScore) {
             user.healthScore = analysis.healthScore;
+            user.lastAnalysisData = {
+                timestamp: new Date(),
+                data: analysis
+            };
             await user.save();
         }
 
@@ -403,7 +441,18 @@ router.post('/chat', protect, async (req, res) => {
     
     User message: "${message}"`;
 
-        const result = await callGemini(prompt);
+        let result;
+        try {
+            result = await callGemini(prompt);
+        } catch (geminiError) {
+            console.error('⚠️ Chat Gemini AI failed:', geminiError.message);
+            if (geminiError.message.includes('429') || geminiError.message.includes('quota') || geminiError.message.includes('rate')) {
+                result = "I'm currently receiving too many requests. Please give me a minute and try again!";
+            } else {
+                throw geminiError;
+            }
+        }
+
         res.json({ reply: result });
     } catch (error) {
         console.error('Chat Error:', error);
