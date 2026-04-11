@@ -151,18 +151,91 @@ router.put('/profile', protect, async (req, res) => {
     }
 });
 
-// Add family member
-router.post('/family', protect, async (req, res) => {
+// Add family member by sending a Request
+router.post('/family/request', protect, async (req, res) => {
     try {
-        const { name, bloodGroup, age, email, password } = req.body;
-        const familyMember = await User.create({
-            name, email: email || `family_${Date.now()}@healthvault.ai`,
-            password: password || 'family123', bloodGroup, age, role: 'patient'
+        const { identifier } = req.body;
+        if (!identifier) return res.status(400).json({ message: 'Search identifier required' });
+
+        const targetUser = await User.findOne({
+            role: 'patient',
+            $or: [
+                { healthId: { $regex: new RegExp(`^${identifier}$`, 'i') } },
+                { email: { $regex: new RegExp(`^${identifier}$`, 'i') } },
+                { name: { $regex: new RegExp(`^${identifier}$`, 'i') } }
+            ]
         });
+
+        if (!targetUser) return res.status(404).json({ message: 'User not found in HealthVault' });
+        if (targetUser._id.toString() === req.user._id.toString()) return res.status(400).json({ message: 'You cannot add yourself' });
+
         const user = await User.findById(req.user._id);
-        user.familyMembers.push(familyMember._id);
+        
+        if (user.familyMembers.includes(targetUser._id)) {
+            return res.status(400).json({ message: 'User is already in your family' });
+        }
+        
+        if (targetUser.familyRequests.includes(user._id)) {
+            return res.status(400).json({ message: 'Request already sent to this user' });
+        }
+
+        // Add request to the target user
+        targetUser.familyRequests.push(user._id);
+        await targetUser.save();
+
+        res.status(200).json({ message: 'Request sent successfully' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// Get incoming family requests
+router.get('/family/requests', protect, async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id).populate('familyRequests', 'name healthId email profilePhoto');
+        res.json(user.familyRequests);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// Accept family request
+router.post('/family/accept', protect, async (req, res) => {
+    try {
+        const { requesterId } = req.body;
+        const user = await User.findById(req.user._id);
+        const requester = await User.findById(requesterId);
+
+        if (!requester || !user.familyRequests.includes(requesterId)) {
+            return res.status(400).json({ message: 'Invalid or expired request' });
+        }
+
+        // Remove from requests list
+        user.familyRequests = user.familyRequests.filter(id => id.toString() !== requesterId.toString());
+
+        // Perform mutual mutual add
+        if (!user.familyMembers.includes(requesterId)) user.familyMembers.push(requesterId);
+        if (!requester.familyMembers.includes(user._id)) requester.familyMembers.push(user._id);
+
         await user.save();
-        res.status(201).json(familyMember);
+        await requester.save();
+
+        res.status(200).json({ message: 'Family member linked successfully' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// Reject family request
+router.post('/family/reject', protect, async (req, res) => {
+    try {
+        const { requesterId } = req.body;
+        const user = await User.findById(req.user._id);
+        
+        user.familyRequests = user.familyRequests.filter(id => id.toString() !== requesterId.toString());
+        await user.save();
+
+        res.status(200).json({ message: 'Request rejected' });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

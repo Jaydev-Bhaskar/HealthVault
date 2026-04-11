@@ -30,6 +30,7 @@ const userSchema = new mongoose.Schema({
     healthScore: { type: Number, default: 500 },
     lastAnalysisData: { type: mongoose.Schema.Types.Mixed },
     familyMembers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    familyRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     createdAt: { type: Date, default: Date.now }
 });
 
