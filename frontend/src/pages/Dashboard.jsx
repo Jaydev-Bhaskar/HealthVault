@@ -139,7 +139,7 @@ const Dashboard = () => {
     <div className="dashboard">
       <div className="dashboard-header">
         <div>
-          <h1>Welcome back, {user?.name?.split(' ')[0]} 👋</h1>
+          <h1>Welcome back, {user?.name?.split(' ')?.[0] || 'User'} 👋</h1>
           <p className="subtitle">Here's your health overview for today</p>
         </div>
         <div className="flex gap-sm">

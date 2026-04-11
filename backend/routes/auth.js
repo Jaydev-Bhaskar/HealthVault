@@ -29,7 +29,7 @@ router.post('/register', async (req, res) => {
         }
         const user = await User.create(userData);
         res.status(201).json({
-            _id: user._id, name: user.name, email: user.email, role: user.role,
+            _id: user._id, id: user._id, name: user.name, email: user.email, role: user.role,
             healthId: user.healthId, healthScore: user.healthScore, bloodGroup: user.bloodGroup,
             age: user.age, phone: user.phone, aadhaarId: user.aadhaarId,
             doctorCode: user.doctorCode, specialty: user.specialty, hospital: user.hospital,
@@ -48,7 +48,7 @@ router.post('/login', async (req, res) => {
         const user = await User.findOne({ email });
         if (user && (await user.matchPassword(password))) {
             res.json({
-                _id: user._id, name: user.name, email: user.email, role: user.role,
+                _id: user._id, id: user._id, name: user.name, email: user.email, role: user.role,
                 healthId: user.healthId, healthScore: user.healthScore, bloodGroup: user.bloodGroup,
                 age: user.age, phone: user.phone, aadhaarId: user.aadhaarId,
                 allergies: user.allergies, chronicIllnesses: user.chronicIllnesses,
@@ -115,7 +115,7 @@ router.post('/aadhaar/verify-otp', async (req, res) => {
         }
 
         res.json({
-            _id: user._id, name: user.name, email: user.email, role: user.role,
+            _id: user._id, id: user._id, name: user.name, email: user.email, role: user.role,
             healthId: user.healthId, healthScore: user.healthScore, bloodGroup: user.bloodGroup,
             age: user.age, aadhaarId: user.aadhaarId,
             allergies: user.allergies, chronicIllnesses: user.chronicIllnesses,

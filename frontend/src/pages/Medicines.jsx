@@ -187,10 +187,10 @@ const Medicines = () => {
               <tbody>
                 {batchMeds.map((med, i) => (
                   <tr key={i}>
-                    <td><input value={med.name} onChange={e => updateBatchMed(i, 'name', e.target.value)} placeholder="e.g., Paracetamol" style={{ width: '100%', margin: 0 }} /></td>
-                    <td><input value={med.dosage} onChange={e => updateBatchMed(i, 'dosage', e.target.value)} placeholder="500mg" style={{ width: '100%', margin: 0 }} /></td>
+                    <td><input id={`med-name-${i}`} value={med.name} onChange={e => updateBatchMed(i, 'name', e.target.value)} placeholder="e.g., Paracetamol" style={{ width: '100%', margin: 0 }} /></td>
+                    <td><input id={`med-dosage-${i}`} value={med.dosage} onChange={e => updateBatchMed(i, 'dosage', e.target.value)} placeholder="500mg" style={{ width: '100%', margin: 0 }} /></td>
                     <td>
-                      <select value={med.frequency} onChange={e => updateBatchMed(i, 'frequency', e.target.value)} style={{ width: '100%', margin: 0 }}>
+                      <select id={`med-frequency-${i}`} value={med.frequency} onChange={e => updateBatchMed(i, 'frequency', e.target.value)} style={{ width: '100%', margin: 0 }}>
                         <option value="once_daily">Once Daily</option>
                         <option value="twice_daily">Twice Daily</option>
                         <option value="thrice_daily">3x Daily</option>
@@ -199,7 +199,7 @@ const Medicines = () => {
                       </select>
                     </td>
                     <td>
-                      <select value={med.timings[0]} onChange={e => updateBatchMed(i, 'timings', [e.target.value])} style={{ width: '100%', margin: 0 }}>
+                      <select id={`med-timing-${i}`} value={med.timings[0]} onChange={e => updateBatchMed(i, 'timings', [e.target.value])} style={{ width: '100%', margin: 0 }}>
                         {timingOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                       </select>
                     </td>

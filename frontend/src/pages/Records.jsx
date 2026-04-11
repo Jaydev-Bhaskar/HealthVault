@@ -15,10 +15,6 @@ const Records = () => {
   const [uploading, setUploading] = useState(false);
   const [scanResult, setScanResult] = useState(null);
 
-  useEffect(() => {
-    if (!isDemo) fetchRecords();
-  }, [isDemo]);
-
   const fetchRecords = async () => {
     try {
       const { data } = await API.get('/records');
@@ -27,6 +23,11 @@ const Records = () => {
       console.log('Records fetch:', err.message);
     }
   };
+
+  useEffect(() => {
+    if (!isDemo) fetchRecords();
+  }, [isDemo]);
+
 
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];

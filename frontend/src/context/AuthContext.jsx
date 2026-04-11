@@ -10,7 +10,12 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const stored = localStorage.getItem('healthvault_user');
-    if (stored) setUser(JSON.parse(stored));
+    try {
+      if (stored) setUser(JSON.parse(stored));
+    } catch (e) {
+      console.error(e);
+      localStorage.removeItem('healthvault_user');
+    }
     setLoading(false);
   }, []);
 

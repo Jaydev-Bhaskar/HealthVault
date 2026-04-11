@@ -11,6 +11,7 @@ const BlockchainLedger = () => {
   const [verification, setVerification] = useState(null);
   const [loading, setLoading] = useState(true);
   const [verifying, setVerifying] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -67,9 +68,14 @@ const BlockchainLedger = () => {
           <h1>⛓️ Blockchain Ledger</h1>
           <p className="page-subtitle">Tamper-proof audit trail of all health data access</p>
         </div>
-        <button className="btn-primary" onClick={handleVerify} disabled={verifying}>
-          {verifying ? '⏳ Verifying...' : '🔍 Verify Chain Integrity'}
-        </button>
+        <div className="flex gap-sm">
+          <div className="navbar-search" style={{ margin: 0, width: '250px' }}>
+            <input type="text" placeholder="Search hash, action, details..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+          </div>
+          <button className="btn-primary" onClick={handleVerify} disabled={verifying}>
+            {verifying ? '⏳ Verifying...' : '🔍 Verify Chain Integrity'}
+          </button>
+        </div>
       </div>
 
       {/* Verification Result */}
@@ -116,14 +122,23 @@ const BlockchainLedger = () => {
       {/* Block List */}
       {loading ? (
         <div className="card" style={{ textAlign: 'center', padding: 40 }}>Loading blocks...</div>
-      ) : blocks.length === 0 ? (
+      ) : blocks.filter(b => b.action.toLowerCase().includes(searchTerm.toLowerCase()) || b.details.toLowerCase().includes(searchTerm.toLowerCase()) || b.hash.includes(searchTerm)).length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: 40 }}>
-          <h3>⛓️ No Transactions Yet</h3>
-          <p style={{ color: 'var(--text-secondary)' }}>Start using HealthVault to see blockchain-logged activities here.</p>
+          {searchTerm ? (
+            <>
+              <h3>No records found</h3>
+              <p style={{ color: 'var(--text-secondary)' }}>No blockchain entries match your search criteria.</p>
+            </>
+          ) : (
+            <>
+              <h3>⛓️ No Transactions Yet</h3>
+              <p style={{ color: 'var(--text-secondary)' }}>Start using HealthVault to see blockchain-logged activities here.</p>
+            </>
+          )}
         </div>
       ) : (
         <div className="block-list">
-          {blocks.map((block, i) => (
+          {blocks.filter(b => b.action.toLowerCase().includes(searchTerm.toLowerCase()) || b.details.toLowerCase().includes(searchTerm.toLowerCase()) || b.hash.includes(searchTerm)).map((block, i) => (
             <div key={block._id || i} className="card block-card" style={{ marginBottom: 12, padding: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>

@@ -26,8 +26,8 @@ const Login = () => {
       login(data); navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed. Check credentials.');
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleSendOtp = async () => {
