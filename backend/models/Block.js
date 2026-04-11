@@ -17,7 +17,8 @@ const blockSchema = new mongoose.Schema({
     // Transaction data
     action: { 
         type: String, 
-      enum: ['ACCESS_GRANTED', 'ACCESS_REVOKED', 'RECORD_VIEWED', 'RECORD_UPLOADED', 'MEDICINE_ADDED', 'EMERGENCY_ACCESS', 'GENESIS', 'ACCESS_GRANTED_QR', 'ACCESS_EDITED'],
+        enum: ['ACCESS_GRANTED', 'ACCESS_REVOKED', 'RECORD_VIEWED', 'RECORD_UPLOADED', 'MEDICINE_ADDED', 'EMERGENCY_ACCESS', 'GENESIS', 'ACCESS_GRANTED_QR', 'ACCESS_EDITED'],
+        required: true
     },
     patientId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     actorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

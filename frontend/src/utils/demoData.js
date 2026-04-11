@@ -103,12 +103,12 @@ export const demoInsights = [
 ];
 
 export const demoHealthTrends = [
-    { month: 'Nov', bp_sys: 128, bp_dia: 84, sugar: 105, cholesterol: 210 },
-    { month: 'Dec', bp_sys: 125, bp_dia: 82, sugar: 102, cholesterol: 205 },
-    { month: 'Jan', bp_sys: 122, bp_dia: 80, sugar: 100, cholesterol: 200 },
-    { month: 'Feb', bp_sys: 120, bp_dia: 79, sugar: 99, cholesterol: 198 },
-    { month: 'Mar', bp_sys: 120, bp_dia: 78, sugar: 98, cholesterol: 195 },
-    { month: 'Apr', bp_sys: 118, bp_dia: 77, sugar: 96, cholesterol: 192 }
+    { month: 'Nov', bp_sys: 138, bp_dia: 88, sugar: 145, cholesterol: 235 },
+    { month: 'Dec', bp_sys: 134, bp_dia: 86, sugar: 132, cholesterol: 225 },
+    { month: 'Jan', bp_sys: 128, bp_dia: 84, sugar: 118, cholesterol: 215 },
+    { month: 'Feb', bp_sys: 125, bp_dia: 82, sugar: 110, cholesterol: 205 },
+    { month: 'Mar', bp_sys: 122, bp_dia: 80, sugar: 105, cholesterol: 198 },
+    { month: 'Apr', bp_sys: 118, bp_dia: 77, sugar: 98, cholesterol: 192 }
 ];
 
 export const demoBlockchain = {

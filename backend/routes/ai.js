@@ -209,10 +209,8 @@ router.post('/ocr-scan', protect, upload.single('file'), async (req, res) => {
             aiError = null; // Suppress the orange error box in the UI
         }
 
-        // Cleanup local file after uploading to Cloudinary and finishing OCR
-        if (uploadedToCloudinary) {
-            try { fs.unlinkSync(filePath); } catch (e) { console.error('Cleanup error:', e); }
-        }
+        // Keep local file as fallback even after Cloudinary upload
+        // This prevents 404 errors if Cloudinary URL is not saved correctly
 
         // Ensure documentType matches the Mongoose enum
         const docType = validTypes.includes(parsed.documentType) ? parsed.documentType : 'other';

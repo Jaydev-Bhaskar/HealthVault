@@ -218,6 +218,22 @@ const Records = () => {
                 <span className="text-muted" style={{ fontSize: '0.75rem' }}>
                   {new Date(record.uploadedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
                 </span>
+                {record.fileUrl && (
+                  <a
+                    href={record.fileUrl.startsWith('http') ? record.fileUrl : `http://localhost:5000${record.fileUrl}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: '4px',
+                      marginTop: '6px', padding: '4px 10px', fontSize: '0.78rem', fontWeight: 600,
+                      color: '#1b6968', background: 'rgba(27, 105, 104, 0.08)',
+                      borderRadius: '6px', textDecoration: 'none', transition: 'all 0.2s'
+                    }}
+                  >
+                    <FiExternalLink size={12} /> View Document
+                  </a>
+                )}
               </div>
               <div className="record-expand">
                 <button onClick={(e) => { e.stopPropagation(); deleteRecord(record._id); }} style={{ background: 'none', border: 'none', color: '#dc3545', cursor: 'pointer', marginRight: '12px' }} title="Delete Record">
