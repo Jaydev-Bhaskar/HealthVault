@@ -13,6 +13,7 @@ const HealthRecord = require('../models/HealthRecord');
 const Medicine = require('../models/Medicine');
 const User = require('../models/User');
 const BlockchainService = require('../services/blockchain');
+const simulationController = require('../controllers/doctorSimulationController');
 
 // ── My Patients: patients who have granted this doctor access ──
 router.get('/my-patients', protect, requireRole('doctor'), async (req, res) => {
@@ -179,5 +180,9 @@ router.get('/stats', protect, requireRole('doctor'), async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 });
+
+// ── Health Simulation ──
+router.post('/simulate-health', protect, requireRole('doctor'), simulationController.simulateHealth);
+router.post('/compare-simulation', protect, requireRole('doctor'), simulationController.compareSimulation);
 
 module.exports = router;

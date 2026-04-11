@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import API from '../utils/api';
+import DoctorSimulation from './DoctorSimulation';
 import './Pages.css';
 
 const DoctorDashboard = () => {
@@ -180,9 +181,9 @@ const DoctorDashboard = () => {
 
             {/* Tabs */}
             <div className="filter-bar" style={{ marginBottom: 16 }}>
-              {['records', 'medicines', 'addNote'].map(t => (
+              {['records', 'medicines', 'simulation', 'addNote'].map(t => (
                 <button key={t} className={`filter-chip ${activeTab === t ? 'active' : ''}`} onClick={() => setActiveTab(t)}>
-                  {t === 'records' ? '📄 Records' : t === 'medicines' ? '💊 Medicines' : '📝 Add Note'}
+                  {t === 'records' ? '📄 Records' : t === 'medicines' ? '💊 Medicines' : t === 'simulation' ? '🕒 Health Simulator' : '📝 Add Note'}
                 </button>
               ))}
             </div>
@@ -220,6 +221,29 @@ const DoctorDashboard = () => {
                         ))}
                       </div>
                     )}
+                    {r.aiParsedData?.diagnosis && (
+                      <div style={{ marginTop: 12, padding: '8px 12px', background: 'rgba(52, 120, 246, 0.05)', borderRadius: 8, borderLeft: '4px solid #1565c0' }}>
+                        <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: '#1565c0' }}>Diagnosis</p>
+                        <p style={{ margin: '4px 0 0', fontSize: '0.9rem' }}>{r.aiParsedData.diagnosis}</p>
+                      </div>
+                    )}
+                    {r.aiParsedData?.medicines?.length > 0 && (
+                      <div style={{ marginTop: 12 }}>
+                        <p style={{ margin: '0 0 4px', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Prescribed Medicines</p>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                          {r.aiParsedData.medicines.map((m, i) => (
+                            <div key={i} className="chip" style={{ fontSize: '0.75rem', background: '#fff9c4' }}>
+                              💊 {m.name} ({m.dosage}) - {m.frequency}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {r.aiParsedData?.summary && r.source === 'ai_ocr' && (
+                      <div style={{ marginTop: 12, fontSize: '0.85rem', fontStyle: 'italic', borderTop: '1px solid var(--outline)', paddingTop: 8 }}>
+                        <p style={{ margin: 0 }}><strong>AI Summary:</strong> {r.aiParsedData.summary}</p>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -253,6 +277,14 @@ const DoctorDashboard = () => {
                   </div>
                 )}
               </div>
+            )}
+
+            {/* Simulation Tab */}
+            {activeTab === 'simulation' && (
+              <DoctorSimulation 
+                patientId={selectedPatient.patient._id} 
+                patientName={selectedPatient.patient.name} 
+              />
             )}
 
             {/* Add Note Tab */}
