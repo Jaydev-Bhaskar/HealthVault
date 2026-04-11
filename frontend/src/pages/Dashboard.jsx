@@ -115,7 +115,7 @@ const Dashboard = () => {
   const runAnalysis = async () => {
     setAnalyzing(true);
     try {
-      const { data } = await API.post('/ai/analyze');
+      const { data } = await API.post('/ai/analyze', { force: true });
       if (data.healthScore) { setHealthScore(data.healthScore); setScoreLabel(data.scoreLabel || 'Good'); }
       if (data.insights) setInsights(data.insights);
     } catch {

@@ -216,7 +216,7 @@ const Records = () => {
                 {record.fileUrl && (
                   <div className="detail-section" style={{ borderBottom: '1px solid var(--border)', paddingBottom: '12px', marginBottom: '16px' }}>
                     <a 
-                      href={`http://localhost:5000${record.fileUrl}`} 
+                      href={record.fileUrl.startsWith('http') ? record.fileUrl : `http://localhost:5000${record.fileUrl}`} 
                       target="_blank" 
                       rel="noopener noreferrer" 
                       className="btn-outline"
