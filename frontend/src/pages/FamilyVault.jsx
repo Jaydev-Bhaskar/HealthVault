@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { demoFamilyMembers, isDemoUser } from '../utils/demoData';
 import API from '../utils/api';
-import { FiPlus, FiActivity, FiHeart } from 'react-icons/fi';
+import { FiPlus, FiActivity, FiHeart, FiAlertTriangle, FiFileText, FiClock, FiSettings } from 'react-icons/fi';
 import './Pages.css';
 
 const FamilyVault = () => {
@@ -19,8 +19,9 @@ const FamilyVault = () => {
 
   const fetchFamily = async () => {
     try {
-      const { data } = await API.get('/auth/family');
-      setMembers(data || []);
+      // Upgraded Caregiver Intelligence endpoint
+      const { data } = await API.get('/family/dashboard');
+      setMembers(data.members || []);
     } catch { /* empty for new users */ }
   };
 
@@ -80,24 +81,66 @@ const FamilyVault = () => {
       )}
 
       <div className="family-grid">
-        {members.map(member => (
-          <div key={member._id} className="card family-card">
-            <div className="family-avatar">
-              <span style={{ fontSize: '1.5rem', color: 'white' }}>{member.name?.charAt(0)}</span>
+        {members.map(member => {
+          // Determine risk badge color
+          const badgeColors = {
+            'LOW': { bg: '#e8f5e9', color: '#2e7d32' },
+            'MEDIUM': { bg: '#fff8e1', color: '#f57f17' },
+            'HIGH': { bg: '#ffebee', color: '#c62828' }
+          };
+          const riskTheme = badgeColors[member.riskLevel] || badgeColors['LOW'];
+
+          return (
+            <div key={member._id} className="card family-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div className="family-avatar" style={{ margin: 0 }}>
+                    <span style={{ fontSize: '1.5rem', color: 'white' }}>{member.name?.charAt(0)}</span>
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.2rem' }}>{member.name}</h3>
+                    <p className="text-muted" style={{ margin: 0, fontSize: '0.85rem' }}>{member.healthId || '—'}</p>
+                  </div>
+                </div>
+                {member.riskLevel && (
+                  <span style={{ 
+                    padding: '4px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold',
+                    backgroundColor: riskTheme.bg, color: riskTheme.color, display: 'flex', alignItems: 'center', gap: '4px'
+                  }}>
+                    {member.riskLevel === 'HIGH' && <FiAlertTriangle />}
+                    {member.riskLevel} RISK
+                  </span>
+                )}
+              </div>
+
+              <div className="family-stats" style={{ display: 'flex', gap: '16px', borderBottom: '1px solid #eee', paddingBottom: '12px' }}>
+                <div className="family-stat"><FiHeart size={14} color="var(--secondary)" /> {member.bloodGroup || '—'}</div>
+                <div className="family-stat">Age: {member.age || '—'}</div>
+                <div className="family-stat" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '4px', color: '#2e7d32', fontWeight: 'bold' }}>
+                  <FiActivity size={16} /> {member.healthScore || 500}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                  <span className="text-muted"><FiFileText size={12} style={{ marginRight: '4px' }}/> Latest Record:</span>
+                  <span style={{ fontWeight: 500, color: 'var(--text-dark)' }}>
+                    {member.latestRecord ? member.latestRecord.title : 'None uploaded'}
+                  </span>
+                </div>
+                
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                  <span className="text-muted">💊 Active Medicines:</span>
+                  <span style={{ fontWeight: 500, color: 'var(--text-dark)' }}>
+                    {member.medicines && member.medicines.length > 0 
+                      ? `${member.medicines.length} prescribed` 
+                      : 'No active routines'}
+                  </span>
+                </div>
+              </div>
             </div>
-            <h3>{member.name}</h3>
-            <p className="text-muted">{member.healthId || '—'}</p>
-            <div className="family-stats">
-              <div className="family-stat"><FiHeart size={14} color="var(--secondary)" /> {member.bloodGroup || '—'}</div>
-              <div className="family-stat">Age: {member.age || '—'}</div>
-            </div>
-            <div className="family-score">
-              <FiActivity size={16} color="#2e7d32" />
-              <strong>{member.healthScore || 500}</strong>
-              <span className="text-muted">/1000</span>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

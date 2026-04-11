@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
+const xss = require('xss');
 const User = require('../models/User');
 const { protect } = require('../middleware/auth');
 
@@ -16,16 +17,18 @@ router.post('/register', async (req, res) => {
         const userExists = await User.findOne({ email });
         if (userExists) return res.status(400).json({ message: 'User already exists' });
 
-        const userData = { name, email, password, phone, aadhaarId, role, bloodGroup, age };
+        // Sanitize user-supplied string fields to prevent stored XSS
+        const sanitize = (v) => (typeof v === 'string' ? xss(v) : v);
+        const userData = { name: sanitize(name), email, password, phone: sanitize(phone), aadhaarId, role, bloodGroup, age };
         if (role === 'doctor') {
-            userData.specialty = specialty;
-            userData.hospital = hospital;
-            userData.licenseNumber = licenseNumber;
+            userData.specialty = sanitize(specialty);
+            userData.hospital = sanitize(hospital);
+            userData.licenseNumber = sanitize(licenseNumber);
         }
         if (role === 'hospital') {
-            userData.registrationNumber = registrationNumber;
+            userData.registrationNumber = sanitize(registrationNumber);
             userData.labTypes = labTypes || [];
-            userData.address = address;
+            userData.address = sanitize(address);
         }
         const user = await User.create(userData);
         res.status(201).json({

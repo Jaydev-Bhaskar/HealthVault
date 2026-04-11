@@ -1,0 +1,130 @@
+{
+  "project": {
+    "name": "HealthVault AI Backend",
+    "version": "2.0.0",
+    "description": "A MERN-stack backend for HealthVault — an AI-powered personal health records management platform with Aadhaar-based auth, blockchain audit trails, doctor access control, medicine tracking, AI-powered report analysis, and emergency QR generation.",
+    "tech_stack": ["Node.js", "Express.js", "MongoDB", "Mongoose", "JWT", "bcryptjs", "multer", "qrcode", "dotenv", "cors"],
+    "base_url": "http://localhost:5000"
+  },
+  "user_roles": ["patient", "doctor", "hospital"],
+  "authentication": {
+    "type": "JWT Bearer Token",
+    "header": "Authorization: Bearer <token>",
+    "token_expiry": "30 days",
+    "mechanisms": ["email+password", "aadhaar+otp"]
+  },
+  "features": [
+    {
+      "id": "F001",
+      "name": "Authentication & User Management",
+      "description": "Register, login, Aadhaar OTP-based authentication, profile management, family member management, and search for doctors/hospitals/patients.",
+      "priority": "critical",
+      "endpoints": [
+        { "method": "POST", "path": "/api/auth/register", "auth": false, "roles": [] },
+        { "method": "POST", "path": "/api/auth/login", "auth": false, "roles": [] },
+        { "method": "POST", "path": "/api/auth/aadhaar/send-otp", "auth": false, "roles": [] },
+        { "method": "POST", "path": "/api/auth/aadhaar/verify-otp", "auth": false, "roles": [] },
+        { "method": "GET",  "path": "/api/auth/profile", "auth": true, "roles": ["patient","doctor","hospital"] },
+        { "method": "PUT",  "path": "/api/auth/profile", "auth": true, "roles": ["patient","doctor","hospital"] },
+        { "method": "POST", "path": "/api/auth/family", "auth": true, "roles": ["patient"] },
+        { "method": "GET",  "path": "/api/auth/family", "auth": true, "roles": ["patient"] },
+        { "method": "GET",  "path": "/api/auth/doctors/search", "auth": true, "roles": ["patient","doctor","hospital"] },
+        { "method": "GET",  "path": "/api/auth/hospitals/search", "auth": true, "roles": ["patient","doctor","hospital"] },
+        { "method": "GET",  "path": "/api/auth/patient/search", "auth": true, "roles": ["patient","doctor","hospital"] }
+      ]
+    },
+    {
+      "id": "F002",
+      "name": "Health Records Management",
+      "description": "Upload, view, delete, and analyze patient health records. Supports file uploads (up to 10MB) and hospital-uploaded reports with blockchain logging.",
+      "priority": "critical",
+      "endpoints": [
+        { "method": "POST",   "path": "/api/records", "auth": true, "roles": ["patient"] },
+        { "method": "GET",    "path": "/api/records", "auth": true, "roles": ["patient"] },
+        { "method": "GET",    "path": "/api/records/:id", "auth": true, "roles": ["patient"] },
+        { "method": "DELETE", "path": "/api/records/:id", "auth": true, "roles": ["patient"] },
+        { "method": "GET",    "path": "/api/records/analytics/trends", "auth": true, "roles": ["patient"] },
+        { "method": "POST",   "path": "/api/records/hospital-upload", "auth": true, "roles": ["hospital"] }
+      ]
+    },
+    {
+      "id": "F003",
+      "name": "Access Control & Permissions",
+      "description": "Patients grant/revoke doctor access to their health records. Includes toggle, permanent revocation, and emergency QR code generation.",
+      "priority": "high",
+      "endpoints": [
+        { "method": "POST",   "path": "/api/access/grant", "auth": true, "roles": ["patient"] },
+        { "method": "GET",    "path": "/api/access", "auth": true, "roles": ["patient"] },
+        { "method": "PUT",    "path": "/api/access/:id/toggle", "auth": true, "roles": ["patient"] },
+        { "method": "DELETE", "path": "/api/access/:id", "auth": true, "roles": ["patient"] },
+        { "method": "GET",    "path": "/api/access/emergency-qr", "auth": true, "roles": ["patient"] }
+      ]
+    },
+    {
+      "id": "F004",
+      "name": "Medicine Tracker",
+      "description": "CRUD for medicines, batch add, adherence logging (mark as taken), daily reminders, and refill alerts.",
+      "priority": "high",
+      "endpoints": [
+        { "method": "POST",   "path": "/api/medicines", "auth": true, "roles": ["patient"] },
+        { "method": "POST",   "path": "/api/medicines/batch", "auth": true, "roles": ["patient"] },
+        { "method": "GET",    "path": "/api/medicines", "auth": true, "roles": ["patient"] },
+        { "method": "GET",    "path": "/api/medicines/active", "auth": true, "roles": ["patient"] },
+        { "method": "PUT",    "path": "/api/medicines/:id", "auth": true, "roles": ["patient"] },
+        { "method": "POST",   "path": "/api/medicines/:id/taken", "auth": true, "roles": ["patient"] },
+        { "method": "DELETE", "path": "/api/medicines/:id", "auth": true, "roles": ["patient"] },
+        { "method": "GET",    "path": "/api/medicines/reminders", "auth": true, "roles": ["patient"] }
+      ]
+    },
+    {
+      "id": "F005",
+      "name": "Doctor Portal",
+      "description": "Doctors view patients who granted them access, view patient records and medicines, add consultation notes with auto-prescribed medicines, and view their own stats.",
+      "priority": "high",
+      "endpoints": [
+        { "method": "GET",  "path": "/api/doctor/my-patients", "auth": true, "roles": ["doctor"] },
+        { "method": "GET",  "path": "/api/doctor/patient/:patientId/records", "auth": true, "roles": ["doctor"] },
+        { "method": "GET",  "path": "/api/doctor/patient/:patientId/medicines", "auth": true, "roles": ["doctor"] },
+        { "method": "POST", "path": "/api/doctor/patient/:patientId/note", "auth": true, "roles": ["doctor"] },
+        { "method": "GET",  "path": "/api/doctor/stats", "auth": true, "roles": ["doctor"] }
+      ]
+    },
+    {
+      "id": "F006",
+      "name": "Blockchain Audit Trail",
+      "description": "Immutable blockchain ledger recording all data access and modification events. Supports ledger retrieval, chain verification, and statistics.",
+      "priority": "medium",
+      "endpoints": [
+        { "method": "GET", "path": "/api/blockchain/ledger", "auth": true, "roles": ["patient","doctor","hospital"] },
+        { "method": "GET", "path": "/api/blockchain/verify", "auth": true, "roles": ["patient","doctor","hospital"] },
+        { "method": "GET", "path": "/api/blockchain/stats", "auth": true, "roles": ["patient","doctor","hospital"] }
+      ]
+    },
+    {
+      "id": "F007",
+      "name": "Health Check",
+      "description": "Simple server health and liveness check endpoint.",
+      "priority": "low",
+      "endpoints": [
+        { "method": "GET", "path": "/api/health", "auth": false, "roles": [] }
+      ]
+    }
+  ],
+  "security_considerations": [
+    "JWT tokens expire after 30 days",
+    "Passwords hashed with bcryptjs",
+    "Role-based access control via requireRole middleware",
+    "File uploads limited to 10MB",
+    "OTP expires in 5 minutes",
+    "No rate limiting implemented (known gap)",
+    "No input validation middleware (known gap)"
+  ],
+  "known_limitations": [
+    "OTP stored in-memory — not persistent",
+    "No rate limiting on sensitive endpoints",
+    "Family member password defaults to 'family123'",
+    "Object.assign on medicine update allows overwriting patient field",
+    "multer v1.x used (known vulnerabilities)",
+    "No express-validator or joi input validation"
+  ]
+}

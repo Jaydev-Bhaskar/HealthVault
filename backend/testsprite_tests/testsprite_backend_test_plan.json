@@ -1,0 +1,42 @@
+[
+  {
+    "id": "TC001",
+    "title": "postapiauthregisterwithvaliddata",
+    "description": "Test user registration endpoint POST /api/auth/register with valid name, email, and password to ensure it returns 201 Created with a new user id."
+  },
+  {
+    "id": "TC002",
+    "title": "postapiauthloginwithvalidcredentials",
+    "description": "Test user login endpoint POST /api/auth/login with registered email and correct password to verify it returns 200 OK with a valid JWT token."
+  },
+  {
+    "id": "TC003",
+    "title": "postapiauthaadhaarsendotpwithvalidaadhaarnumber",
+    "description": "Test POST /api/auth/aadhaar/send-otp with a valid Aadhaar number to confirm it returns 200 OK indicating OTP was sent (OTP logged to server console in demo)."
+  },
+  {
+    "id": "TC004",
+    "title": "postapiauthaadhaarverifyotpwithcorrectotp",
+    "description": "Test POST /api/auth/aadhaar/verify-otp with correct Aadhaar number and OTP to verify it returns 200 OK with a JWT token linking/verifying Aadhaar."
+  },
+  {
+    "id": "TC005",
+    "title": "postapiauthregisterwithexistingemail",
+    "description": "Test POST /api/auth/register with an email that already exists to ensure it returns 409 Conflict with an appropriate error message."
+  },
+  {
+    "id": "TC006",
+    "title": "postapiauthloginwithincorrectpassword",
+    "description": "Test POST /api/auth/login with valid email but incorrect password to confirm it returns 401 Unauthorized with authentication error."
+  },
+  {
+    "id": "TC007",
+    "title": "postapiauthaadhaarverifyotpwithincorrectotp",
+    "description": "Test POST /api/auth/aadhaar/verify-otp with incorrect OTP to verify it returns 400 Bad Request indicating OTP verification failure."
+  },
+  {
+    "id": "TC008",
+    "title": "getapiauthprofilewithvalidtoken",
+    "description": "Test GET /api/auth/profile with valid Authorization Bearer token to ensure it returns 200 OK with user profile and vault metadata."
+  }
+]

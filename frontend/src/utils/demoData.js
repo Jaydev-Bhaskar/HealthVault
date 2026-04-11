@@ -91,8 +91,8 @@ export const demoPermissions = [
 ];
 
 export const demoFamilyMembers = [
-    { _id: 'f1', name: 'Priya Sharma', healthId: 'HV-K8N2P5QL', bloodGroup: 'A+', age: 26, healthScore: 780 },
-    { _id: 'f2', name: 'Ramesh Sharma', healthId: 'HV-R3M7X1PL', bloodGroup: 'O+', age: 58, healthScore: 620 }
+    { _id: 'f1', name: 'Priya Sharma', healthId: 'HV-K8N2P5QL', bloodGroup: 'A+', age: 26, healthScore: 780, riskLevel: 'LOW', medicines: [{ name: 'Vitamin C' }], latestRecord: { title: 'Annual Checkup', type: 'lab_report', uploadedAt: '2026-03-20T10:00:00Z' } },
+    { _id: 'f2', name: 'Ramesh Sharma', healthId: 'HV-R3M7X1PL', bloodGroup: 'O+', age: 58, healthScore: 620, riskLevel: 'MEDIUM', medicines: [{ name: 'Amlodipine' }, { name: 'Metformin' }], latestRecord: { title: 'Cardiology Report', type: 'scan', uploadedAt: '2026-04-01T14:30:00Z' } }
 ];
 
 export const demoInsights = [

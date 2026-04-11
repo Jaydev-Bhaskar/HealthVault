@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { isDemoUser } from '../utils/demoData';
 import { FiPlus, FiClock, FiCheck, FiAlertCircle, FiBell, FiTrash2, FiCalendar, FiMinus } from 'react-icons/fi';
@@ -18,6 +18,7 @@ const Medicines = () => {
   const isDemo = isDemoUser(user);
   const [medicines, setMedicines] = useState(isDemo ? demoMedicines : []);
   const [showForm, setShowForm] = useState(false);
+  const formRef = useRef(null);
   const [takenMap, setTakenMap] = useState({});
   const [prescribedBy, setPrescribedBy] = useState('');
   const [batchNotes, setBatchNotes] = useState('');
@@ -27,6 +28,12 @@ const Medicines = () => {
   useEffect(() => {
     if (!isDemo) fetchMedicines();
   }, [isDemo]);
+
+  useEffect(() => {
+    if (showForm && formRef.current) {
+      formRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [showForm]);
 
   const fetchMedicines = async () => {
     try {
@@ -159,7 +166,7 @@ const Medicines = () => {
 
       {/* BATCH Add Medicine Form */}
       {showForm && (
-        <div className="card" style={{ marginBottom: '24px' }}>
+        <div ref={formRef} className="card" style={{ marginBottom: '24px' }}>
           <h4 style={{ marginBottom: '4px' }}>Add Multiple Medicines at Once</h4>
           <p className="text-muted" style={{ marginBottom: '16px', fontSize: '0.82rem' }}>Add all medicines from a prescription in one go</p>
           <form onSubmit={handleBatchAdd}>
