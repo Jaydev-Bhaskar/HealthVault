@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { demoRecords, isDemoUser } from '../utils/demoData';
 import API from '../utils/api';
-import { FiUpload, FiFile, FiCamera, FiChevronDown, FiChevronUp } from 'react-icons/fi';
+import { FiUpload, FiFile, FiCamera, FiChevronDown, FiChevronUp, FiExternalLink } from 'react-icons/fi';
 import './Pages.css';
 
 const Records = () => {
@@ -211,9 +211,22 @@ const Records = () => {
               <div className="record-expand">{expanded === record._id ? <FiChevronUp /> : <FiChevronDown />}</div>
             </div>
 
-            {expanded === record._id && record.aiParsedData && (
+            {expanded === record._id && (
               <div className="record-details">
-                {record.aiParsedData.summary && (
+                {record.fileUrl && (
+                  <div className="detail-section" style={{ borderBottom: '1px solid var(--border)', paddingBottom: '12px', marginBottom: '16px' }}>
+                    <a 
+                      href={`http://localhost:5000${record.fileUrl}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="btn-outline"
+                      style={{ fontSize: '0.85rem', padding: '6px 12px' }}
+                    >
+                      <FiExternalLink /> View Original Document
+                    </a>
+                  </div>
+                )}
+                {record.aiParsedData?.summary && (
                   <div className="detail-section"><h5>🧠 AI Summary</h5><p>{record.aiParsedData.summary}</p></div>
                 )}
                 {record.aiParsedData.medicines?.length > 0 && (
