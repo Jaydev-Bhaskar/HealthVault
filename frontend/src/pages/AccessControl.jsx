@@ -3,7 +3,8 @@ import { useAuth } from '../context/AuthContext';
 import { demoPermissions, isDemoUser } from '../utils/demoData';
 import API from '../utils/api';
 import { QRCodeSVG } from 'qrcode.react';
-import { FiPlus, FiShield, FiSearch, FiTrash2, FiAlertCircle, FiEdit2 } from 'react-icons/fi';
+import { FiPlus, FiShield, FiSearch, FiTrash2, FiAlertCircle, FiEdit2, FiMessageCircle } from 'react-icons/fi';
+import ChatModal from '../components/ChatModal';
 import './Pages.css';
 
 const AccessControl = () => {
@@ -21,6 +22,7 @@ const AccessControl = () => {
   const [recordSearch, setRecordSearch] = useState('');
   const [editMode, setEditMode] = useState(false);
   const [editId, setEditId] = useState(null);
+  const [activeChat, setActiveChat] = useState(null);
 
   useEffect(() => {
     if (!isDemo) fetchPermissions();
@@ -340,6 +342,11 @@ const AccessControl = () => {
                 Since {new Date(perm.grantedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
               </span>
               <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
+                {perm.isActive && (
+                  <button onClick={() => setActiveChat({ id: perm.doctor || perm.doctorId, name: perm.doctorName })} title="Chat with Doctor" style={{ background: 'var(--primary)', border: 'none', cursor: 'pointer', color: 'white', padding: '4px 8px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem' }}>
+                    <FiMessageCircle size={14} /> Chat
+                  </button>
+                )}
                 <button onClick={() => handleEdit(perm)} title="Edit Access" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary)', padding: '4px' }}>
                   <FiEdit2 size={14} />
                 </button>
@@ -351,6 +358,15 @@ const AccessControl = () => {
           </div>
         ))}
       </div>
+
+      {activeChat && (
+        <ChatModal
+          partnerId={activeChat.id}
+          partnerName={activeChat.name}
+          partnerRole="doctor"
+          onClose={() => setActiveChat(null)}
+        />
+      )}
     </div>
   );
 };

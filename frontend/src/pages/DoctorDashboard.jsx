@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import API from '../utils/api';
-import { FiExternalLink, FiCamera } from 'react-icons/fi';
+import { FiExternalLink, FiCamera, FiMessageCircle } from 'react-icons/fi';
 import jsQR from 'jsqr';
 import DoctorSimulation from './DoctorSimulation';
+import ChatModal from '../components/ChatModal';
 import './Pages.css';
 
 const DoctorDashboard = () => {
@@ -20,11 +21,25 @@ const DoctorDashboard = () => {
   const [noteSuccess, setNoteSuccess] = useState('');
   const [scanning, setScanning] = useState(false);
   const [scanMessage, setScanMessage] = useState('');
+  const [activeChat, setActiveChat] = useState(null);
+  const [unreadCounts, setUnreadCounts] = useState({});
   const fileInputRef = useRef(null);
 
   useEffect(() => {
     fetchData();
+    fetchUnreadCounts();
+    const interval = setInterval(() => {
+      fetchUnreadCounts();
+    }, 5000);
+    return () => clearInterval(interval);
   }, []);
+
+  const fetchUnreadCounts = async () => {
+    try {
+      const { data } = await API.get('/chat/unread');
+      setUnreadCounts(data.senders || {});
+    } catch (err) { /* ignore polling errors */ }
+  };
 
   const fetchData = async () => {
     try {
@@ -212,11 +227,16 @@ const DoctorDashboard = () => {
                   <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--secondary-accent)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>
                     {p.patient?.name?.charAt(0) || '?'}
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontWeight: 600, margin: 0, fontSize: '0.9rem' }}>{p.patient?.name}</p>
-                    <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                      {p.patient?.healthId} • {p.accessType}
-                    </p>
+                  <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <p style={{ fontWeight: 600, margin: 0, fontSize: '0.9rem' }}>{p.patient?.name}</p>
+                      <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                        {p.patient?.healthId} • {p.accessType}
+                      </p>
+                    </div>
+                    {unreadCounts[p.patient?._id] > 0 && (
+                      <span className="chat-badge">{unreadCounts[p.patient._id]}</span>
+                    )}
                   </div>
                 </div>
               ))
@@ -236,7 +256,10 @@ const DoctorDashboard = () => {
                     {selectedPatient.patient?.healthId} • {selectedPatient.patient?.bloodGroup || 'N/A'} • Age: {selectedPatient.patient?.age || 'N/A'}
                   </p>
                 </div>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button onClick={() => { setActiveChat({ id: selectedPatient.patient._id, name: selectedPatient.patient.name }); setUnreadCounts(prev => ({...prev, [selectedPatient.patient._id]: 0})); }} className="btn-primary" style={{ padding: '4px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <FiMessageCircle size={14} /> Chat {unreadCounts[selectedPatient.patient?._id] > 0 ? `(${unreadCounts[selectedPatient.patient._id]})` : ''}
+                  </button>
                   <span className="chip" style={{ background: '#e8f5e9', color: '#2e7d32' }}>{selectedPatient.accessType} access</span>
                   <span className="chip">Score: {selectedPatient.patient?.healthScore || '—'}</span>
                 </div>
@@ -466,6 +489,15 @@ const DoctorDashboard = () => {
           </div>
         )}
       </div>
+
+      {activeChat && (
+        <ChatModal
+          partnerId={activeChat.id}
+          partnerName={activeChat.name}
+          partnerRole="patient"
+          onClose={() => setActiveChat(null)}
+        />
+      )}
     </div>
   );
 };
