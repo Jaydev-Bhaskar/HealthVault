@@ -6,6 +6,7 @@
  */
 const crypto = require('crypto');
 const Block = require('../models/Block');
+const { anchorRecord } = require('./anchorService');
 
 class BlockchainService {
 
@@ -81,6 +82,18 @@ class BlockchainService {
             hash,
             nonce
         });
+
+        // Anchor the new block hash to Polygon Amoy (non-blocking for main flow)
+        anchorRecord(block.hash)
+            .then(async (txHash) => {
+                if (txHash) {
+                    block.blockchainTx = txHash;
+                    await block.save();
+                }
+            })
+            .catch(error => {
+                console.error("Failed to anchor block:", error.message);
+            });
 
         return block;
     }

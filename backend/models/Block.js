@@ -28,7 +28,8 @@ const blockSchema = new mongoose.Schema({
     // Chain integrity
     previousHash: { type: String, required: true },
     hash: { type: String, required: true, unique: true },
-    nonce: { type: Number, default: 0 }
+    nonce: { type: Number, default: 0 },
+    blockchainTx: { type: String, default: null }
 });
 
 module.exports = mongoose.model('Block', blockSchema);
