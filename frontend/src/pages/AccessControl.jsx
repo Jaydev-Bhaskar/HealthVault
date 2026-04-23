@@ -3,8 +3,9 @@ import { useAuth } from '../context/AuthContext';
 import { demoPermissions, isDemoUser } from '../utils/demoData';
 import API from '../utils/api';
 import { QRCodeSVG } from 'qrcode.react';
-import { FiPlus, FiShield, FiSearch, FiTrash2, FiAlertCircle, FiEdit2, FiMessageCircle } from 'react-icons/fi';
+import { FiPlus, FiShield, FiSearch, FiTrash2, FiAlertCircle, FiEdit2, FiMessageCircle, FiVideo } from 'react-icons/fi';
 import ChatModal from '../components/ChatModal';
+import VideoModal from '../components/VideoModal';
 import './Pages.css';
 
 const AccessControl = () => {
@@ -23,6 +24,13 @@ const AccessControl = () => {
   const [editMode, setEditMode] = useState(false);
   const [editId, setEditId] = useState(null);
   const [activeChat, setActiveChat] = useState(null);
+  const [activeVideo, setActiveVideo] = useState(null);
+  const [myAppointments, setMyAppointments] = useState([]);
+  const [bookingDoctor, setBookingDoctor] = useState(null);
+  const [bookingForm, setBookingForm] = useState({ date: '', timeSlot: '', type: 'online' });
+  const [availableSlots, setAvailableSlots] = useState([]);
+  const [showPayment, setShowPayment] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
 
   useEffect(() => {
     if (!isDemo) fetchPermissions();
@@ -30,12 +38,14 @@ const AccessControl = () => {
 
   const fetchPermissions = async () => {
     try {
-      const [permRes, recordsRes] = await Promise.all([
+      const [permRes, recordsRes, apptRes] = await Promise.all([
         API.get('/access'),
-        API.get('/records')
+        API.get('/records'),
+        API.get('/appointments/my-appointments').catch(() => ({ data: [] }))
       ]);
       setPermissions(permRes.data || []);
       setUserRecords(recordsRes.data || []);
+      setMyAppointments(apptRes.data || []);
     } catch { /* empty for new users */ }
   };
 
@@ -87,6 +97,71 @@ const AccessControl = () => {
     setEditId(null);
     setSaving(false);
   };
+
+  const loadSlots = async (docId, date) => {
+    try {
+       const { data } = await API.get(`/appointments/doctor/${docId}/slots?date=${date}`);
+       setAvailableSlots(data.slots || []);
+    } catch (e) {
+       setAvailableSlots([]);
+    }
+  };
+
+  // Fetch live doctor settings (fee, UPI) before opening booking
+  const openBooking = async (docId, fallback) => {
+    try {
+      const { data } = await API.get(`/auth/doctors/search?q=${fallback.name || ''}`);
+      const found = data.find(d => d._id === docId) || fallback;
+      setBookingDoctor({
+        _id: docId,
+        name: found.name || fallback.name,
+        specialty: found.specialty || fallback.specialty,
+        hospital: found.hospital || fallback.hospital,
+        consultationFee: found.consultationFee || 500,
+        paymentUPI: found.paymentUPI || 'doctor@upi'
+      });
+    } catch {
+      setBookingDoctor({ ...fallback, consultationFee: fallback.consultationFee || 500, paymentUPI: fallback.paymentUPI || 'doctor@upi' });
+    }
+    setBookingForm({ date: '', timeSlot: '', type: 'online' });
+    setShowForm(false);
+    setShowPayment(false);
+  };
+
+  const handleBooking = async () => {
+    setSaving(true);
+    try {
+      await API.post('/appointments/book', {
+         doctorId: bookingDoctor._id,
+         date: bookingForm.date,
+         timeSlot: bookingForm.timeSlot,
+         type: bookingForm.type,
+         amount: bookingDoctor.consultationFee,
+         transactionId: 'UPI_' + Date.now()
+      });
+      setShowPayment(false);
+      setBookingDoctor(null);
+      await fetchPermissions(); // Refreshes appointments
+      setToastMsg('Payment done Successfully');
+      setTimeout(() => setToastMsg(''), 3000);
+    } catch (e) { alert('Error booking appointment'); }
+    setSaving(false);
+  };
+
+  const handleCancelAppointment = async (id) => {
+    if (!window.confirm('Are you sure you want to cancel this appointment?')) return;
+    setSaving(true);
+    try {
+      await API.post(`/appointments/${id}/cancel`);
+      setToastMsg('Appointment cancelled successfully');
+      setTimeout(() => setToastMsg(''), 3000);
+      await fetchPermissions(); // Refreshes appointments
+    } catch (e) {
+      alert(e.response?.data?.message || 'Error cancelling appointment');
+    }
+    setSaving(false);
+  };
+
 
   const handleEdit = (perm) => {
     setForm({
@@ -207,10 +282,16 @@ const AccessControl = () => {
                 {searchResults.length > 0 && (
                   <div className="doctor-search-results">
                     {searchResults.map(doc => (
-                      <div key={doc._id} className="doctor-result" onClick={() => selectDoctor(doc)}>
-                        <strong>{doc.name}</strong>
-                        <span className="chip" style={{ marginLeft: '8px', fontSize: '0.7rem' }}>{doc.doctorCode}</span>
-                        <p className="text-muted" style={{ fontSize: '0.78rem' }}>{doc.specialty} · {doc.hospital}</p>
+                      <div key={doc._id} className="doctor-result" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div onClick={() => selectDoctor(doc)} style={{ flex: 1 }}>
+                          <strong>{doc.name}</strong>
+                          <span className="chip" style={{ marginLeft: '8px', fontSize: '0.7rem' }}>{doc.doctorCode}</span>
+                          <p className="text-muted" style={{ fontSize: '0.78rem' }}>{doc.specialty} · {doc.hospital}</p>
+                          <p style={{ fontSize: '0.75rem', marginTop: '4px', color: 'var(--primary)' }}>Fee: ₹{doc.consultationFee || 500}</p>
+                        </div>
+                        <button type="button" className="btn-outline" style={{ fontSize: '0.75rem', padding: '4px 10px' }} onClick={() => { setBookingDoctor(doc); setBookingForm({ date: '', timeSlot: '', type: 'online' }); setShowForm(false); }}>
+                          Book
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -316,8 +397,134 @@ const AccessControl = () => {
         </div>
       )}
 
+      {/* Booking Modal & Payment Overlay */}
+      {bookingDoctor && (
+        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+           <div className="card" style={{ width: '90%', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto' }}>
+             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+               <h3 style={{ margin: 0 }}>{showPayment ? '💳 Complete Payment' : '📅 Book Appointment'}</h3>
+               <button type="button" onClick={() => { setBookingDoctor(null); setShowPayment(false); }} style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer' }}>✖</button>
+             </div>
+             
+             {!showPayment ? (
+               <>
+                 <div style={{ padding: '12px', background: 'var(--surface-container-low)', borderRadius: '8px', marginBottom: 16 }}>
+                   <strong>{bookingDoctor.name}</strong>
+                   <p className="text-muted" style={{ margin: '4px 0 0', fontSize: '0.85rem' }}>{bookingDoctor.specialty} • ₹{bookingDoctor.consultationFee || 500}</p>
+                 </div>
+                 <div className="form-group">
+                   <label>Consultation Type</label>
+                   <select value={bookingForm.type} onChange={e => setBookingForm({...bookingForm, type: e.target.value})}>
+                     <option value="online">🌐 Online Video / Chat</option>
+                     <option value="in-person">🏥 In-Person at Hospital</option>
+                   </select>
+                 </div>
+                 <div className="form-group">
+                   <label>Select Date</label>
+                   <input type="date" min={new Date().toISOString().split('T')[0]} value={bookingForm.date} onChange={e => {
+                      setBookingForm({...bookingForm, date: e.target.value, timeSlot: ''});
+                      loadSlots(bookingDoctor._id, e.target.value);
+                   }} />
+                 </div>
+                 {bookingForm.date && (
+                   <div className="form-group">
+                     <label>Select Time Slot</label>
+                     {availableSlots.length === 0 ? (
+                        <p className="text-muted" style={{ fontSize: '0.85rem' }}>No slots available for this date.</p>
+                     ) : (
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                          {availableSlots.map(slot => (
+                             <button key={slot} type="button" className={`chip ${bookingForm.timeSlot === slot ? 'chip-success' : ''}`} onClick={() => setBookingForm({...bookingForm, timeSlot: slot})}>
+                               {slot}
+                             </button>
+                          ))}
+                        </div>
+                     )}
+                   </div>
+                 )}
+                 <button className="btn-primary" style={{ width: '100%', marginTop: 16 }} disabled={!bookingForm.timeSlot} onClick={() => setShowPayment(true)}>
+                   💳 Pay to Proceed ₹{bookingDoctor?.consultationFee || 500}
+                 </button>
+               </>
+             ) : (
+               <div style={{ textAlign: 'center' }}>
+                 <p className="text-muted" style={{ marginBottom: 16 }}>Scan the QR Code using any UPI app to pay Dr. {bookingDoctor.name.split(' ')[1] || bookingDoctor.name}</p>
+                 <div style={{ background: 'white', padding: 16, display: 'inline-block', borderRadius: 8, border: '1px solid #ddd', marginBottom: 16 }}>
+                   <QRCodeSVG value={`upi://pay?pa=${bookingDoctor.paymentUPI || 'doctor@ybl'}&am=${bookingDoctor.consultationFee || 500}&cu=INR`} size={200} />
+                 </div>
+                 <p style={{ fontWeight: 600, fontSize: '1.2rem', marginBottom: 24 }}>Amount: ₹{bookingDoctor.consultationFee || 500}</p>
+                 <div style={{ display: 'flex', gap: 12 }}>
+                   <button className="btn-outline" style={{ flex: 1 }} onClick={() => setShowPayment(false)}>Back</button>
+                   <button className="btn-primary" style={{ flex: 2, background: '#2e7d32' }} onClick={handleBooking} disabled={saving}>
+                     {saving ? 'Confirming...' : '✅ I Have Paid'}
+                   </button>
+                 </div>
+               </div>
+             )}
+           </div>
+        </div>
+      )}
+
+      {/* Appointments Grid */}
+      {myAppointments.length > 0 && !showForm && !bookingDoctor && (
+        <div style={{ marginBottom: '32px' }}>
+          <h3 style={{ marginBottom: '16px' }}>📅 Upcoming Consultations</h3>
+          <div className="access-grid">
+            {myAppointments.filter(apt => apt && apt.doctor && apt.status === 'scheduled').map(apt => {
+               const doc = apt.doctor;
+               return (
+                 <div key={apt._id} className="card access-card">
+                  <div className="access-card-header">
+                    <div className="access-info">
+                      <strong>{doc?.name || 'Doctor'}</strong>
+                      <span className="text-muted" style={{ fontSize: '0.8rem', display: 'block' }}>{apt.date} at {apt.timeSlot}</span>
+                    </div>
+                    {apt.status === 'scheduled' && (
+                      <button 
+                        className="btn-ghost" 
+                        style={{ color: 'var(--error)', padding: '4px 8px', fontSize: '0.75rem' }}
+                        onClick={() => handleCancelAppointment(apt._id)}
+                        disabled={saving}
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                  <div className="access-meta">
+                    <span className="chip" style={{ background: apt.type === 'online' ? '#e3f2fd' : '#fff3e0' }}>
+                      {apt.type === 'online' ? '🌐 Online' : '🏥 In-Person'}
+                    </span>
+                    <span className={`chip ${apt.paymentStatus === 'paid' ? 'chip-success' : apt.paymentStatus === 'refunded' ? 'chip-danger' : 'chip-warning'}`}>
+                      {apt.paymentStatus === 'paid' ? '💳 Paid' : apt.paymentStatus === 'refunded' ? '💸 Refunded' : '⏳ Pending'}
+                    </span>
+
+                    <span className={`chip ${apt.status === 'scheduled' ? 'chip-info' : 'chip-danger'}`} style={{ marginLeft: 'auto' }}>
+                      {apt.status === 'scheduled' ? '📅 Scheduled' : '❌ Cancelled'}
+                    </span>
+                  </div>
+                  {apt.type === 'online' && apt.paymentStatus === 'paid' && apt.status === 'scheduled' && (
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                      <button className="btn-outline" style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }} onClick={() => setActiveChat({ id: doc?._id, name: doc?.name || 'Doctor' })}>
+                        <FiMessageCircle size={16} /> Chat
+                      </button>
+                      <button className="btn-primary" style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }} onClick={() => setActiveVideo({ id: apt._id, name: `Consultation with Dr. ${doc?.name || ''}` })}>
+                        <FiVideo size={16} /> Video
+                      </button>
+                    </div>
+                  )}
+                 </div>
+               );
+            })}
+
+          </div>
+        </div>
+      )}
+
       {/* Permissions Grid */}
-      <div className="access-grid">
+      {permissions.length > 0 && !showForm && !bookingDoctor && (
+        <>
+          <h3 style={{ marginBottom: '16px', marginTop: '16px' }}>🔐 Active Access Permissions</h3>
+          <div className="access-grid">
         {permissions.map(perm => (
           <div key={perm._id} className={`card access-card ${perm.isActive ? '' : 'inactive'}`}>
             <div className="access-card-header">
@@ -343,9 +550,18 @@ const AccessControl = () => {
               </span>
               <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
                 {perm.isActive && (
-                  <button onClick={() => setActiveChat({ id: perm.doctor || perm.doctorId, name: perm.doctorName })} title="Chat with Doctor" style={{ background: 'var(--primary)', border: 'none', cursor: 'pointer', color: 'white', padding: '4px 8px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem' }}>
-                    <FiMessageCircle size={14} /> Chat
-                  </button>
+                  <>
+                    <button onClick={() => setActiveChat({ id: perm.doctor || perm.doctorId, name: perm.doctorName })} title="Chat with Doctor" style={{ background: 'var(--primary)', border: 'none', cursor: 'pointer', color: 'white', padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                      💬 Chat
+                    </button>
+                    <button onClick={() => openBooking(perm.doctor || perm.doctorId, {
+                          name: perm.doctorName,
+                          specialty: perm.doctorSpecialty,
+                          hospital: perm.hospital
+                      })} title="Book Appointment" style={{ background: 'var(--primary-dark)', border: 'none', cursor: 'pointer', color: 'white', padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                      📅 Book
+                    </button>
+                  </>
                 )}
                 <button onClick={() => handleEdit(perm)} title="Edit Access" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary)', padding: '4px' }}>
                   <FiEdit2 size={14} />
@@ -357,7 +573,9 @@ const AccessControl = () => {
             </div>
           </div>
         ))}
-      </div>
+          </div>
+        </>
+      )}
 
       {activeChat && (
         <ChatModal
@@ -366,6 +584,20 @@ const AccessControl = () => {
           partnerRole="doctor"
           onClose={() => setActiveChat(null)}
         />
+      )}
+
+      {activeVideo && (
+        <VideoModal
+          roomId={activeVideo.id}
+          title={activeVideo.name}
+          onClose={() => setActiveVideo(null)}
+        />
+      )}
+
+      {toastMsg && (
+        <div style={{ position: 'fixed', bottom: '20px', left: '50%', transform: 'translateX(-50%)', background: '#2e7d32', color: '#fff', padding: '12px 24px', borderRadius: '30px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 10000, transition: 'all 0.3s ease' }}>
+          {toastMsg}
+        </div>
       )}
     </div>
   );

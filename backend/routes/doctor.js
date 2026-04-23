@@ -186,8 +186,30 @@ router.get('/stats', protect, requireRole('doctor'), async (req, res) => {
             hospital: req.user.hospital,
             totalActivePatients: totalPatients,
             totalConsultations,
-            licenseNumber: req.user.licenseNumber
+            licenseNumber: req.user.licenseNumber,
+            consultationFee: req.user.consultationFee,
+            paymentUPI: req.user.paymentUPI,
+            availableDays: req.user.availableDays || [],
+            availableTimeStart: req.user.availableTimeStart,
+            availableTimeEnd: req.user.availableTimeEnd
         });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// ── Update Doctor Settings ──
+router.post('/settings', protect, requireRole('doctor'), async (req, res) => {
+    try {
+        const { consultationFee, paymentUPI, availableDays, availableTimeStart, availableTimeEnd } = req.body;
+        const user = await User.findById(req.user._id);
+        if (consultationFee !== undefined) user.consultationFee = consultationFee;
+        if (paymentUPI !== undefined) user.paymentUPI = paymentUPI;
+        if (availableDays !== undefined) user.availableDays = availableDays;
+        if (availableTimeStart !== undefined) user.availableTimeStart = availableTimeStart;
+        if (availableTimeEnd !== undefined) user.availableTimeEnd = availableTimeEnd;
+        await user.save();
+        res.json({ message: 'Settings updated successfully' });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

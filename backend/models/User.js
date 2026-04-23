@@ -17,6 +17,11 @@ const userSchema = new mongoose.Schema({
     specialty: { type: String },
     hospital: { type: String },
     licenseNumber: { type: String },
+    consultationFee: { type: Number, default: 500 },
+    paymentUPI: { type: String, default: 'doctor@upi' },
+    availableDays: { type: [String], default: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] },
+    availableTimeStart: { type: String, default: '09:00' },
+    availableTimeEnd: { type: String, default: '17:00' },
     // Hospital/Lab-specific fields
     labCode: { type: String, unique: true, sparse: true },
     registrationNumber: { type: String },

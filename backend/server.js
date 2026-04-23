@@ -55,6 +55,7 @@ app.use('/api/blockchain', require('./routes/blockchain'));
 app.use('/api/doctor', require('./routes/doctor'));
 app.use('/api/family', require('./routes/family'));
 app.use('/api/chat', require('./routes/chat'));
+app.use('/api/appointments', require('./routes/appointment'));
 
 // Health check
 app.get('/api/health', (req, res) => {

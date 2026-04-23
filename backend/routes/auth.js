@@ -292,7 +292,7 @@ router.get('/doctors/search', protect, async (req, res) => {
                 { hospital: { $regex: q, $options: 'i' } }
             ]
         };
-        const doctors = await User.find(query).select('name doctorCode specialty hospital email').limit(10);
+        const doctors = await User.find(query).select('name doctorCode specialty hospital email consultationFee paymentUPI availableDays').limit(10);
         res.json(doctors);
     } catch (error) {
         res.status(500).json({ message: error.message });
