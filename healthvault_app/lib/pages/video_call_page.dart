@@ -11,12 +11,12 @@ class VideoCallPage extends StatelessWidget {
 
   Future<void> _launchJitsi(BuildContext context) async {
     final url = Uri.parse('https://meet.jit.si/HealthVaultConsultation_$roomId');
-    if (await canLaunchUrl(url)) {
+    try {
       await launchUrl(url, mode: LaunchMode.externalApplication);
-    } else {
+    } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not launch video call'), backgroundColor: AppColors.error),
+          SnackBar(content: Text('Could not launch video call: $e'), backgroundColor: AppColors.error),
         );
       }
     }

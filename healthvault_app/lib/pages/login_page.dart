@@ -35,7 +35,14 @@ class _LoginPageState extends State<LoginPage> {
       });
       if (mounted) {
         await context.read<AuthProvider>().loginWithData(Map<String, dynamic>.from(data));
-        Navigator.pushReplacementNamed(context, '/dashboard');
+        final role = data['user']?['role'] ?? 'patient';
+        if (role == 'doctor') {
+          Navigator.pushReplacementNamed(context, '/doctor-dashboard');
+        } else if (role == 'hospital') {
+          Navigator.pushReplacementNamed(context, '/hospital-dashboard');
+        } else {
+          Navigator.pushReplacementNamed(context, '/dashboard');
+        }
       }
     } catch (e) {
       _showError(e.toString().replaceFirst('Exception: ', ''));
@@ -85,7 +92,14 @@ class _LoginPageState extends State<LoginPage> {
       });
       if (mounted) {
         await context.read<AuthProvider>().loginWithData(Map<String, dynamic>.from(data));
-        Navigator.pushReplacementNamed(context, '/dashboard');
+        final role = data['user']?['role'] ?? 'patient';
+        if (role == 'doctor') {
+          Navigator.pushReplacementNamed(context, '/doctor-dashboard');
+        } else if (role == 'hospital') {
+          Navigator.pushReplacementNamed(context, '/hospital-dashboard');
+        } else {
+          Navigator.pushReplacementNamed(context, '/dashboard');
+        }
       }
     } catch (e) {
       _showError(e.toString().replaceFirst('Exception: ', ''));

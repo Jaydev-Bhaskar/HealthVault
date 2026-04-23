@@ -66,7 +66,13 @@ class _RegisterPageState extends State<RegisterPage> {
       final data = await ApiService.post('/auth/register', body);
       if (mounted) {
         await context.read<AuthProvider>().loginWithData(Map<String, dynamic>.from(data));
-        Navigator.pushReplacementNamed(context, '/dashboard');
+        if (role == 'doctor') {
+          Navigator.pushReplacementNamed(context, '/doctor-dashboard');
+        } else if (role == 'hospital') {
+          Navigator.pushReplacementNamed(context, '/hospital-dashboard');
+        } else {
+          Navigator.pushReplacementNamed(context, '/dashboard');
+        }
       }
     } catch (e) {
       _showError(e.toString().replaceFirst('Exception: ', ''));
