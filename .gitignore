@@ -49,3 +49,7 @@ backend/uploads/
 
 # Stitch agent artifacts
 stitch-skills/
+
+ai-microservice/
+.venv/
+.venv
