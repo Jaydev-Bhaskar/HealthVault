@@ -32,9 +32,20 @@ async function anchorRecord(recordHash) {
         console.log('[DEBUG] PRIVATE_KEY (masked):', maskedKey);
         console.log('[DEBUG] CONTRACT_ADDRESS:', contractAddress);
 
-        // 1. Connect provider using JsonRpcProvider
+        // 1. Connect provider using JsonRpcProvider with static network to avoid endless retry
         console.log('[DEBUG] Connecting to provider...');
-        const provider = new ethers.JsonRpcProvider(RPC_URL);
+        const provider = new ethers.JsonRpcProvider(RPC_URL, {
+            chainId: 80002,
+            name: 'polygon-amoy'
+        }, {
+            staticNetwork: true,
+            polling: false
+        });
+        // Set a connection timeout — abort if network not reachable within 10s
+        await Promise.race([
+            provider.getNetwork(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('RPC connection timed out after 10s')), 10000))
+        ]);
 
         // 2. Create wallet using PRIVATE_KEY
         console.log('[DEBUG] Initializing wallet...');

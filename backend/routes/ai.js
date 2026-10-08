@@ -8,8 +8,7 @@ const { protect } = require('../middleware/auth');
 const Tesseract = require('tesseract.js');
 const Groq = require('groq-sdk');
 
-// Start Groq client (requires GROQ_API_KEY)
-const groq = process.env.GROQ_API_KEY ? new Groq({ apiKey: process.env.GROQ_API_KEY }) : null;
+// Groq client is initialized lazily inside callGroq() to ensure dotenv has loaded
 
 // Configure Cloudinary
 cloudinary.config({
@@ -90,16 +89,18 @@ function getMockAnalysisResponse(user) {
     };
 }
 
-// Helper: Call Groq (Llama 3 API)
+// Helper: Call Groq (Llama 3 API) — client created lazily so env vars are always loaded
 async function callGroq(prompt, jsonMode = false) {
-    if (!groq) throw new Error('GROQ_API_KEY is not configured in .env');
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) throw new Error('GROQ_API_KEY is not configured in .env');
+    const groq = new Groq({ apiKey });
 
     console.log(`🤖 Calling Groq Llama-3 API...`);
 
     try {
         const chatCompletion = await groq.chat.completions.create({
             messages: [{ role: 'user', content: prompt }],
-            model: 'llama-3.1-8b-instant',
+            model: 'qwen/qwen3.8-27b',
             temperature: 0.2,
             response_format: jsonMode ? { type: "json_object" } : undefined
         });
@@ -178,9 +179,16 @@ router.post('/ocr-scan', protect, upload.single('file'), async (req, res) => {
 
         // Attempt AI parsing — gracefully degrade if Groq/Tesseract is unavailable
         try {
-            console.log('🔍 Running Local OCR with Tesseract...');
-            const { data: { text } } = await Tesseract.recognize(filePath, 'eng');
-            console.log(`✅ Local OCR finished, extracted ${text.length} characters.`);
+            console.log('🔍 Running Local OCR...');
+            let text = '';
+            if (mimeType === 'application/pdf') {
+                console.log('⚠️ Skipping Tesseract for PDF — local OCR only supports images.');
+                text = '[PDF Document - Local OCR Skipped]';
+            } else {
+                const result = await Tesseract.recognize(filePath, 'eng');
+                text = result.data.text;
+                console.log(`✅ Local OCR finished, extracted ${text.length} characters.`);
+            }
             
             const groqPrompt = `${prompt}\n\nRaw Text from Image OCR:\n${text}`;
             const result = await callGroq(groqPrompt, true);
