@@ -144,7 +144,7 @@ const seed = async () => {
             title: 'Cardiac Checkup Jan 2024',
             type: 'lab_report',
             description: 'Routine blood test and ECG.',
-            fileUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+            fileUrl: 'https://res.cloudinary.com/demo/image/upload/sample_report.pdf',
             fileName: 'lab_report_cardio.pdf',
             aiParsedData: {
                 medicines: [{ name: 'Aspirin', dosage: '75mg', frequency: 'Once daily', duration: '30 days' }],

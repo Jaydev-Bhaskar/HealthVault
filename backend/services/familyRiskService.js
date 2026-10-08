@@ -37,7 +37,7 @@ class FamilyRiskService {
                 - Recent Summary: ${latestRecord?.aiParsedData?.summary || 'None'}
             `;
 
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+            const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
             const response = await axios.post(url, {
                 contents: [{ parts: [{ text: prompt }] }]
             });
